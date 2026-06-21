@@ -19,6 +19,24 @@ class Mailer {
             error_log('MAIL ERROR: RESEND_API_KEY not set');
             return false;
         }
+        $result = self::rawSend($apiKey, $payload);
+        if ($result['ok']) return true;
+
+        /* Auto-fallback: if domain not verified, retry with Resend test sender */
+        if ($result['code'] === 403 && strpos($result['body'], 'not verified') !== false) {
+            error_log('MAIL: domain not verified, retrying with onboarding@resend.dev');
+            $payload['from'] = 'FMC <onboarding@resend.dev>';
+            $retry = self::rawSend($apiKey, $payload);
+            if ($retry['ok']) return true;
+            error_log("MAIL RESEND FALLBACK ERROR {$retry['code']}: {$retry['body']}");
+            return false;
+        }
+
+        error_log("MAIL RESEND ERROR {$result['code']}: {$result['body']}");
+        return false;
+    }
+
+    private static function rawSend(string $apiKey, array $payload): array {
         $json = json_encode($payload);
         $ch   = curl_init('https://api.resend.com/emails');
         curl_setopt_array($ch, [
@@ -38,13 +56,9 @@ class Mailer {
         $code     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err      = curl_error($ch);
         @curl_close($ch);
-        if ($err) { error_log("MAIL CURL ERROR: {$err}"); return false; }
-        if ($code >= 200 && $code < 300) {
-            $data = json_decode($response, true);
-            if (!empty($data['id'])) return true;
-        }
-        error_log("MAIL RESEND ERROR {$code}: {$response}");
-        return false;
+        if ($err) return ['ok' => false, 'code' => 0, 'body' => 'CURL: ' . $err];
+        $ok = ($code >= 200 && $code < 300 && !empty(json_decode($response, true)['id']));
+        return ['ok' => $ok, 'code' => $code, 'body' => $response];
     }
 
     /** Returns ['ok'=>bool, 'code'=>int, 'body'=>string] for debugging */
