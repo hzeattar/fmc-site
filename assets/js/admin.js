@@ -363,9 +363,27 @@
     });
   }
 
-  function fileLine(label, name) {
-    if (!name) return '<div class="file-row muted small">' + esc(label) + ': <em>not provided</em></div>';
-    return '<div class="file-row"><span>' + esc(label) + ':</span> <strong>' + esc(name) + '</strong></div>';
+  function fileLine(label, value) {
+    if (!value) return '<div class="file-row muted small">' + esc(label) + ': <em>not provided</em></div>';
+    /* value may be a URL (/uploads/...) or just a filename */
+    var isUrl = value.indexOf('/') === 0 || value.indexOf('http') === 0;
+    var display = value.split('/').pop() || value;
+    var link = isUrl
+      ? ' <a class="btn btn-sm btn-outline" href="' + esc(value) + '" target="_blank" rel="noopener" download>&#8681; Download</a>' +
+        ' <a class="btn btn-sm btn-outline" href="' + esc(value) + '" target="_blank" rel="noopener">&#128065; View</a>'
+      : '';
+    return '<div class="file-row"><span>' + esc(label) + ':</span> <strong>' + esc(display) + '</strong>' + link + '</div>';
+  }
+
+  function extraFileLine(f) {
+    var name = f.name || 'file';
+    var url  = f.url  || '';
+    var from = f.from === 'admin' ? 'Admin' : 'Complainant';
+    var link = url
+      ? ' <a class="btn btn-sm btn-outline" href="' + esc(url) + '" target="_blank" rel="noopener" download>&#8681; Download</a>' +
+        ' <a class="btn btn-sm btn-outline" href="' + esc(url) + '" target="_blank" rel="noopener">&#128065; View</a>'
+      : '';
+    return '<li class="extra-item"><span class="extra-from">' + esc(from) + '</span> <strong>' + esc(name) + '</strong>' + link + '</li>';
   }
 
   function renderStateForm(rec) {
@@ -636,9 +654,12 @@
     var arr = rec.extraFiles || [];
     if (!arr.length) { ul.innerHTML = '<li class="muted small">No additional files yet.</li>'; return; }
     ul.innerHTML = arr.map(function (f) {
-      return '<li><span class="ef-name">' + esc(f.name) + '</span>' +
-        '<span class="ef-meta muted small">' + (f.from === "applicant" ? "Complainant" : "Officer") +
-        ' · ' + esc(fmtDateTime(f.at)) + ' · ' + Math.round((f.size || 0) / 1024) + ' KB</span></li>';
+      return extraFileLine(f) +
+        '<span class="ef-meta muted small" style="display:block;margin-left:8px">' +
+        (f.from === "applicant" ? "Complainant" : "Officer") +
+        ' · ' + esc(fmtDateTime(f.at)) +
+        (f.size ? ' · ' + Math.round((f.size || 0) / 1024) + ' KB' : '') +
+        '</span>';
     }).join("");
   }
 

@@ -154,16 +154,44 @@
     var block = $("#" + blockId);
     var input = $("#" + inputId);
     if (!block || !input) return;
-    block.addEventListener("click", function () { input.click(); });
+    block.addEventListener("click", function () { if (!block.classList.contains("uploading")) input.click(); });
     input.addEventListener("change", function () {
-      if (input.files && input.files[0]) {
-        var f = input.files[0];
-        files[key] = { name: f.name, size: f.size };
-        block.classList.add("has-file");
-        $(".filename", block).textContent = "\u2713 " + f.name + " (" + Math.round(f.size / 1024) + " KB)";
-        $(".filename", block).style.display = "block";
-        if (key === "idDoc") { block.classList.remove("invalid-upload"); $("#idDocError").style.display = "none"; }
-      }
+      if (!input.files || !input.files[0]) return;
+      var f = input.files[0];
+      /* Show pending state */
+      files[key] = { name: f.name, size: f.size, url: null };
+      block.classList.add("has-file", "uploading");
+      $(".filename", block).textContent = "\u23f3 Uploading " + f.name + "…";
+      $(".filename", block).style.display = "block";
+
+      /* Actually upload the file */
+      var fd = new FormData();
+      fd.append("file", f);
+      fd.append("context", "evidence");
+      fetch("/api/upload_file.php", { method: "POST", body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          block.classList.remove("uploading");
+          if (data.ok) {
+            files[key] = { name: f.name, size: f.size, url: data.url };
+            $(".filename", block).textContent = "\u2713 " + f.name + " (" + Math.round(f.size / 1024) + " KB)";
+            if (key === "idDoc") { block.classList.remove("invalid-upload"); $("#idDocError").style.display = "none"; }
+          } else {
+            files[key] = null;
+            block.classList.remove("has-file");
+            $(".filename", block).textContent = "";
+            alert("Upload failed: " + (data.error || "Unknown error"));
+          }
+          input.value = "";
+        })
+        .catch(function() {
+          block.classList.remove("uploading");
+          files[key] = null;
+          block.classList.remove("has-file");
+          $(".filename", block).textContent = "";
+          alert("Upload failed. Please try again.");
+          input.value = "";
+        });
     });
   }
 
@@ -207,9 +235,9 @@
       },
       evidence: {
         idType: idType ? idType.value : "",
-        idDoc: files.idDoc ? files.idDoc.name : null,
-        transfer: files.transfer ? files.transfer.name : null,
-        platform: files.platform ? files.platform.name : null
+        idDoc:     files.idDoc     ? files.idDoc.url     || files.idDoc.name     : null,
+        transfer:  files.transfer  ? files.transfer.url  || files.transfer.name  : null,
+        platform:  files.platform  ? files.platform.url  || files.platform.name  : null
       }
     };
 

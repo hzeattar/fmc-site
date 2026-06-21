@@ -551,18 +551,81 @@
     var block = $("#uploadExtra");
     var input = $("#extraInput");
     if (!block || !input) return;
-    block.addEventListener("click", function () { input.click(); });
+    block.addEventListener("click", function () {
+      if (!block.classList.contains("uploading")) input.click();
+    });
     input.addEventListener("change", function () {
       if (!currentRef) return;
       if (!input.files || !input.files[0]) return;
       var f = input.files[0];
       var rec = loadCase(currentRef);
       if (!rec) return;
-      rec.extraFiles = rec.extraFiles || [];
-      rec.extraFiles.push({ name: f.name, size: f.size, from: "applicant", at: new Date().toISOString() });
-      saveCase(rec);
-      input.value = "";
-      renderExtraFiles(rec);
+
+      /* Show uploading state */
+      block.classList.add("uploading");
+      var origLabel = block.querySelector("span") || block;
+      var prevText = origLabel.textContent || "";
+      if (origLabel) origLabel.textContent = "\u23f3 Uploading…";
+
+      var fd = new FormData();
+      fd.append("file", f);
+      fd.append("context", "extra");
+      fd.append("reference", currentRef);
+      fetch("/api/upload_file.php", { method: "POST", body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          block.classList.remove("uploading");
+          if (origLabel) origLabel.textContent = prevText;
+          input.value = "";
+          if (!data.ok) {
+            alert("Upload failed: " + (data.error || "Unknown error"));
+            return;
+          }
+          /* Save file entry to DB via send_message.php */
+          var fileEntry = {
+            name: f.name,
+            size: f.size,
+            url:  data.url,
+            from: "applicant",
+            at:   new Date().toISOString()
+          };
+          fetch("/api/send_message.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              reference:   currentRef,
+              name:        (rec.complainant && rec.complainant.fullName) || "Complainant",
+              email:       (rec.complainant && rec.complainant.email) || "",
+              message:     null,
+              extra_file:  fileEntry
+            })
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d.ok && d.record) {
+              _caseRec = d.record;
+              renderExtraFiles(d.record);
+            } else {
+              /* Fallback: update in memory */
+              rec.extraFiles = rec.extraFiles || [];
+              rec.extraFiles.push(fileEntry);
+              saveCase(rec);
+              renderExtraFiles(rec);
+            }
+          })
+          .catch(function() {
+            rec.extraFiles = rec.extraFiles || [];
+            rec.extraFiles.push(fileEntry);
+            saveCase(rec);
+            renderExtraFiles(rec);
+          });
+        })
+        .catch(function() {
+          block.classList.remove("uploading");
+          if (origLabel) origLabel.textContent = prevText;
+          input.value = "";
+          alert("Upload failed. Please try again.");
+        });
     });
   }
 
