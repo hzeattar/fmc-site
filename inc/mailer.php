@@ -62,7 +62,7 @@ class Mailer {
     }
 
     public static function complaintConfirmation(string $to, string $ref, string $name): bool {
-        $link = rtrim(APP_URL, '/') . '/pages/track.html?id=' . urlencode($ref);
+        $link = rtrim(APP_URL, '/') . '/pages/track.html?ref=' . urlencode($ref);
         $subject = 'Complaint Received - Reference #' . $ref;
         $html = "<html><body style='font-family:Arial,sans-serif;line-height:1.6;color:#333'>
 <h2 style='color:#1d4f91'>FMC Complaint Confirmation</h2>

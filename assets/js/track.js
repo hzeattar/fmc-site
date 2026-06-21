@@ -11,19 +11,15 @@
   function T(k) { return (window.FMC_I18N && window.FMC_I18N.t) ? window.FMC_I18N.t(k) : k; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]; }); }
 
-  var DB_KEY = "fmc_complaints";
   var PS_KEY = "fmc_payment_settings";
   var STATES = ["received", "review", "call", "info", "decision", "closed"];
 
-  /* ---------- Storage helpers ---------- */
-  function loadAll() { try { return JSON.parse(localStorage.getItem(DB_KEY) || "{}"); } catch (e) { return {}; } }
-  function saveAll(o) { try { localStorage.setItem(DB_KEY, JSON.stringify(o)); } catch (e) {} }
-  function loadCase(ref) { return loadAll()[ref] || null; }
-  function saveCase(rec) {
-    var all = loadAll();
-    all[rec.ref] = rec;
-    saveAll(all);
-  }
+  /* ---------- In-memory cache — data loaded from API ---------- */
+  var _caseRec = null;
+  function loadAll() { return _caseRec ? { [_caseRec.ref]: _caseRec } : {}; }
+  function saveAll() {}
+  function loadCase(ref) { return (_caseRec && _caseRec.ref === ref) ? _caseRec : null; }
+  function saveCase(rec) { _caseRec = rec; /* in-memory; actual saves go via dedicated endpoints */ }
   var PAYMENT_DEFAULTS = {
     bank: {
       accountName: "Financial Monitoring Commission",
@@ -449,8 +445,14 @@
     if (!rec) return;
     if (rec.applicantUnread) {
       rec.applicantUnread = 0;
-      saveCase(rec);
+      _caseRec = rec;
       renderChatLauncher(rec);
+      /* Mark read on server */
+      fetch("/api/mark_read.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ref: currentRef })
+      }).catch(function(){});
     }
     renderChat(rec);
     var modal = $("#chatModal");
@@ -493,14 +495,27 @@
     var err = $("#trackError");
     err.style.display = "none";
     if (!ref) { err.textContent = T("tk.err.empty"); err.style.display = "block"; return; }
-    var rec = loadCase(ref);
-    if (!rec) {
-      err.innerHTML = T("tk.err.nf1") + " <strong>" + esc(ref) + "</strong>" + T("tk.err.nf2");
-      err.style.display = "block";
-      return;
-    }
-    history.replaceState(null, "", "?ref=" + encodeURIComponent(ref));
-    renderAll(ref);
+    var btn = $("#trackBtn");
+    var origTxt = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "…"; }
+    fetch("/api/track_complaint.php?ref=" + encodeURIComponent(ref))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (btn) { btn.disabled = false; btn.textContent = origTxt; }
+        if (!data.ok || !data.complaint) {
+          err.innerHTML = T("tk.err.nf1") + " <strong>" + esc(ref) + "</strong>" + T("tk.err.nf2");
+          err.style.display = "block";
+          return;
+        }
+        _caseRec = data.complaint;
+        history.replaceState(null, "", "?ref=" + encodeURIComponent(ref));
+        renderAll(ref);
+      })
+      .catch(function() {
+        if (btn) { btn.disabled = false; btn.textContent = origTxt; }
+        err.textContent = "Network error. Please try again.";
+        err.style.display = "block";
+      });
   }
   function backToLookup() {
     currentRef = null;
@@ -518,12 +533,24 @@
     if (!txt) return;
     var rec = loadCase(currentRef);
     if (!rec) return;
+    /* Optimistic update */
     rec.messages = rec.messages || [];
     rec.messages.push({ from: "applicant", text: txt, at: new Date().toISOString() });
-    saveCase(rec);
+    _caseRec = rec;
     $("#chatText").value = "";
     renderChat(rec);
     renderChatLauncher(rec);
+    /* Persist to server */
+    fetch("/api/send_message.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reference: currentRef,
+        name: (rec.complainant && rec.complainant.fullName) || "Complainant",
+        email: (rec.complainant && rec.complainant.email) || "",
+        message: txt
+      })
+    }).catch(function(){});
   }
 
   /* ---------- Extra file upload ---------- */
@@ -657,14 +684,21 @@
   /* ---------- Live sync (storage event + interval) ---------- */
   function softReload() {
     if (!currentRef) return;
-    var rec = loadCase(currentRef);
-    if (!rec) return;
-    renderHeader(rec);
-    renderOfficer(rec);
-    renderTimeline(rec);
-    renderChat(rec);
-    renderChatLauncher(rec);
-    renderExtraFiles(rec);
+    fetch("/api/track_complaint.php?ref=" + encodeURIComponent(currentRef))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok || !data.complaint) return;
+        _caseRec = data.complaint;
+        var rec = data.complaint;
+        renderHeader(rec);
+        renderOfficer(rec);
+        renderTimeline(rec);
+        renderChatLauncher(rec);
+        renderExtraFiles(rec);
+        var chatModal = $("#chatModal");
+        if (!chatModal || !chatModal.classList.contains("open")) renderChat(rec);
+      })
+      .catch(function(){});
   }
 
   /* ---------- Init ---------- */
@@ -712,16 +746,12 @@
       if (currentRef) renderAll(currentRef);
     });
 
-    // Live sync from admin actions in another tab
-    window.addEventListener("storage", function (e) {
-      if (e.key === DB_KEY && currentRef) softReload();
-    });
-    // Light polling so changes within the same tab appear quickly
-    setInterval(function () { if (currentRef) softReload(); }, 2500);
+    /* Periodic sync — fetch from API every 10s */
+    setInterval(function () { if (currentRef) softReload(); }, 10000);
 
-    // Auto-load from ?ref=
+    /* Auto-load from ?ref= or ?id= */
     var params = new URLSearchParams(location.search);
-    var ref = params.get("ref");
+    var ref = params.get("ref") || params.get("id");
     if (ref) { input.value = ref.toUpperCase(); lookup(ref); }
   });
 })();

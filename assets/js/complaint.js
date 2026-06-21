@@ -161,11 +161,8 @@
     var idType = $("input[name=idType]:checked");
     var nowIso = new Date().toISOString();
     var record = {
-      ref: genRef(),
       createdAt: nowIso,
-      // legacy mirror so old code keeps working
       status: "received",
-      // new state machine (received → review → call → info → decision → closed)
       state: "received",
       stateHistory: [{ state: "received", at: nowIso, by: "system" }],
       officer: null,
@@ -174,6 +171,7 @@
       decision: null,
       messages: [],
       extraFiles: [],
+      applicantUnread: 0,
       complainant: {
         fullName: val("fullName"),
         nationality: val("nationality"),
@@ -198,15 +196,29 @@
         platform: files.platform ? files.platform.name : null
       }
     };
-    // persist
-    try {
-      var all = JSON.parse(localStorage.getItem("fmc_complaints") || "{}");
-      all[record.ref] = record;
-      localStorage.setItem("fmc_complaints", JSON.stringify(all));
-    } catch (e) { /* storage may be unavailable */ }
 
-    clearDraft();
-    showSuccess(record.ref);
+    var btn = $("#submitComplaint");
+    if (btn) btn.disabled = true;
+
+    fetch("/api/submit_complaint.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (btn) btn.disabled = false;
+      if (data.ok) {
+        clearDraft();
+        showSuccess(data.ref || data.reference);
+      } else {
+        alert(data.error || "Failed to submit complaint. Please try again.");
+      }
+    })
+    .catch(function() {
+      if (btn) btn.disabled = false;
+      alert("Network error. Please check your connection and try again.");
+    });
   }
 
   function showSuccess(ref) {

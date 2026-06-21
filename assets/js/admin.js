@@ -20,22 +20,37 @@
   }
   function initials(name) { return (name || "?").split(/\s+/).map(function (w) { return w[0] || ""; }).join("").slice(0, 2).toUpperCase(); }
 
-  /* ---------- Auth (demo) ---------- */
-  var ADMIN_USER = "admin";
-  var ADMIN_PASS = "fmc-admin-2024";
-  function isLogged() {
-    try { return JSON.parse(localStorage.getItem("fmc_admin_session") || "null") && JSON.parse(localStorage.getItem("fmc_admin_session")).logged === true; }
-    catch (e) { return false; }
-  }
-  function setLogged(b) {
-    if (b) localStorage.setItem("fmc_admin_session", JSON.stringify({ logged: true, at: Date.now() }));
-    else localStorage.removeItem("fmc_admin_session");
-  }
+  /* ---------- Auth (API session) ---------- */
+  var _adminLoggedIn = false;
+  function isLogged() { return _adminLoggedIn; }
+  function setLogged(b) { _adminLoggedIn = !!b; }
 
-  /* ---------- Storage helpers ---------- */
-  function loadCases() { try { return JSON.parse(localStorage.getItem("fmc_complaints") || "{}"); } catch (e) { return {}; } }
-  function saveCases(o) { try { localStorage.setItem("fmc_complaints", JSON.stringify(o)); } catch (e) {} }
-  function saveCase(rec) { var all = loadCases(); all[rec.ref] = rec; saveCases(all); }
+  /* ---------- Complaints cache (from API) ---------- */
+  var _casesCache = {};
+  function loadCases() { return _casesCache; }
+  function saveCases(o) { _casesCache = o || {}; }
+  function saveCase(rec) {
+    _casesCache[rec.ref] = rec;
+    fetch("/api/admin_save_complaint.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(rec)
+    }).catch(function(){});
+  }
+  function fetchCasesFromApi(done) {
+    fetch("/api/admin_complaints.php", { credentials: "include" })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok && Array.isArray(data.complaints)) {
+          var m = {};
+          data.complaints.forEach(function(c) { if (c && c.ref) m[c.ref] = c; });
+          _casesCache = m;
+        }
+        if (done) done();
+      })
+      .catch(function() { if (done) done(); });
+  }
 
   function loadFirmOverrides() { try { return JSON.parse(localStorage.getItem("fmc_admin_firms") || "{}"); } catch (e) { return {}; } }
   function saveFirmOverrides(o) { try { localStorage.setItem("fmc_admin_firms", JSON.stringify(o)); } catch (e) {} }
@@ -110,15 +125,30 @@
   function doLogin() {
     var u = $("#adminUser").value.trim();
     var p = $("#adminPass").value;
-    if (u === ADMIN_USER && p === ADMIN_PASS) {
-      setLogged(true);
-      showShell();
-    } else {
+    if (!u || !p) { $("#adminLoginErr").style.display = "block"; return; }
+    var btn = $("#adminLoginBtn");
+    if (btn) btn.disabled = true;
+    fetch("/api/admin_login.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ username: u, password: p })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (btn) btn.disabled = false;
+      if (data.ok) { setLogged(true); showShell(); }
+      else { $("#adminLoginErr").style.display = "block"; }
+    })
+    .catch(function() {
+      if (btn) btn.disabled = false;
       $("#adminLoginErr").style.display = "block";
-    }
+    });
   }
   function logout() {
+    fetch("/api/admin_logout.php", { method: "POST", credentials: "include" }).catch(function(){});
     setLogged(false);
+    _casesCache = {};
     $("#adminShell").style.display = "none";
     $("#adminLogin").style.display = "";
     $("#adminUser").value = "";
@@ -130,7 +160,7 @@
     renderAll();
   }
   function renderAll() {
-    renderComplaintsList();
+    fetchCasesFromApi(renderComplaintsList);
     renderFirms();
     renderOfficers();
     renderPaymentSettings();
@@ -871,7 +901,14 @@
      INIT
      =========================================================== */
   document.addEventListener("DOMContentLoaded", function () {
-    if (isLogged()) showShell(); else $("#adminLogin").style.display = "";
+    /* Check server session on page load */
+    fetch("/api/admin_session.php", { credentials: "include" })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { setLogged(true); showShell(); }
+        else { $("#adminLogin").style.display = ""; }
+      })
+      .catch(function() { $("#adminLogin").style.display = ""; });
 
     $("#adminLoginBtn").addEventListener("click", doLogin);
     $("#adminPass").addEventListener("keydown", function (e) { if (e.key === "Enter") doLogin(); });
@@ -929,24 +966,19 @@
       refreshQrPreview("");
     });
 
-    // live sync from track page
-    window.addEventListener("storage", function (e) {
-      if (e.key === "fmc_complaints") {
-        renderComplaintsList();
-        if (selectedRef) renderCaseDetail();
-      }
-    });
+    /* Periodic API sync every 10s */
     setInterval(function () {
       if (!isLogged()) return;
-      renderComplaintsList();
-      if (selectedRef) {
-        // light refresh: only chat + extras to avoid flicker
-        var rec = loadCases()[selectedRef];
-        if (rec) {
-          if ($("#adChatBox")) renderAdminChat(rec);
-          if ($("#adExtraList")) renderAdminExtras(rec);
+      fetchCasesFromApi(function() {
+        renderComplaintsList();
+        if (selectedRef) {
+          var rec = loadCases()[selectedRef];
+          if (rec) {
+            if ($("#adChatBox")) renderAdminChat(rec);
+            if ($("#adExtraList")) renderAdminExtras(rec);
+          }
         }
-      }
-    }, 2500);
+      });
+    }, 10000);
   });
 })();
