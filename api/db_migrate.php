@@ -47,11 +47,24 @@ try {
     )->execute([$hash]);
     $done[] = 'Admin account ensured';
 
-    /* ── 5. Clean expired sessions ── */
+    /* ── 5. Ensure fmc_companies has all required columns ── */
+    $compCols = [
+        "ALTER TABLE fmc_companies ADD COLUMN type        VARCHAR(100)  DEFAULT NULL",
+        "ALTER TABLE fmc_companies ADD COLUMN country     VARCHAR(100)  DEFAULT NULL",
+        "ALTER TABLE fmc_companies ADD COLUMN year_founded INT          DEFAULT NULL",
+        "ALTER TABLE fmc_companies ADD COLUMN website     VARCHAR(500)  DEFAULT NULL",
+        "ALTER TABLE fmc_companies ADD COLUMN description TEXT          DEFAULT NULL",
+    ];
+    foreach ($compCols as $sql) {
+        try { $pdo->exec($sql); $done[] = 'Added companies column'; }
+        catch (PDOException $e) { /* column already exists — ignore */ }
+    }
+
+    /* ── 6. Clean expired sessions ── */
     $deleted = $pdo->exec("DELETE FROM fmc_sessions WHERE expires < NOW()");
     if ($deleted > 0) $done[] = "Cleared {$deleted} expired session(s)";
 
-    /* ── 6. Backfill raw_data for NULL/empty/corrupted complaint records ── */
+    /* ── 7. Backfill raw_data for NULL/empty/corrupted complaint records ── */
     try {
         /* Count records that need rebuilding: NULL, empty, OR missing the 'ref' key */
         $nullCount = (int) $pdo->query(
