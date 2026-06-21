@@ -15,17 +15,19 @@ try {
     $pdo  = DB::pdo();
     $rows = [];
 
-    /* Try fetching with raw_data; fall back if column not yet added */
+    /* Try fetching with raw_data + all flat columns; fall back if column not yet added */
     try {
         $stmt = $pdo->query(
-            "SELECT raw_data, reference, full_name, email, created_at
+            "SELECT raw_data, reference, full_name, email, phone, company_name, description,
+                    amount_lost, currency_lost, status, created_at
              FROM fmc_complaints ORDER BY created_at DESC LIMIT 1000"
         );
         $rows = $stmt->fetchAll();
     } catch (PDOException $eCol) {
         /* raw_data column doesn't exist yet */
         $stmt = $pdo->query(
-            "SELECT reference, full_name, email, created_at
+            "SELECT reference, full_name, email, phone, company_name, description,
+                    amount_lost, currency_lost, status, created_at
              FROM fmc_complaints ORDER BY created_at DESC LIMIT 1000"
         );
         $rows = $stmt->fetchAll();
@@ -40,18 +42,32 @@ try {
                 continue;
             }
         }
-        /* Fallback for records without raw_data */
+        /* Fallback for records without raw_data — rebuild full JS shape from flat columns */
+        $dbStatus = $row['status'] ?? 'pending';
+        $frontendState = match ($dbStatus) {
+            'under_review' => 'review',
+            default => 'received',
+        };
         $complaints[] = [
             'ref'          => $row['reference'],
             'createdAt'    => $row['created_at'],
-            'state'        => 'received',
-            'status'       => 'received',
-            'stateHistory' => [],
+            'state'        => $frontendState,
+            'status'       => $frontendState,
+            'stateHistory' => [['state' => $frontendState, 'at' => $row['created_at'], 'by' => 'system']],
             'messages'     => [],
             'extraFiles'   => [],
             'applicantUnread' => 0,
-            'complainant'  => ['fullName' => $row['full_name'], 'email' => $row['email']],
-            'case'         => [],
+            'complainant'  => [
+                'fullName' => $row['full_name'] ?? '',
+                'email'    => $row['email'] ?? '',
+                'phone'    => $row['phone'] ?? '',
+            ],
+            'case'         => [
+                'firm'            => $row['company_name'] ?? '',
+                'currency'        => $row['currency_lost'] ?? 'USD',
+                'amountDeposited' => (string) ($row['amount_lost'] ?? ''),
+                'reason'          => $row['description'] ?? '',
+            ],
             'evidence'     => [],
         ];
     }
