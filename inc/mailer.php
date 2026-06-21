@@ -49,9 +49,13 @@ class Mailer {
 
     /** Returns ['ok'=>bool, 'code'=>int, 'body'=>string] for debugging */
     public static function sendDebug(string $to, string $subject, string $html, string $text = ''): array {
+        return self::sendDebugFrom(FROM_EMAIL, $to, $subject, $html, $text);
+    }
+
+    public static function sendDebugFrom(string $from, string $to, string $subject, string $html, string $text = ''): array {
         $apiKey = self::apiKey();
         if (empty($apiKey)) return ['ok' => false, 'code' => 0, 'body' => 'RESEND_API_KEY not set'];
-        $payload = json_encode(['from' => FROM_EMAIL, 'to' => [$to], 'subject' => $subject, 'html' => $html, 'text' => $text ?: strip_tags($html)]);
+        $payload = json_encode(['from' => $from, 'to' => [$to], 'subject' => $subject, 'html' => $html, 'text' => $text ?: strip_tags($html)]);
         $ch = curl_init('https://api.resend.com/emails');
         curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $apiKey, 'Content-Type: application/json'], CURLOPT_TIMEOUT => 15, CURLOPT_SSL_VERIFYPEER => true, CURLOPT_SSL_VERIFYHOST => 2]);
         $response = curl_exec($ch);

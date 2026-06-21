@@ -16,25 +16,44 @@ if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
 $testRef  = 'FMC-TEST-001';
 $testName = 'Test User';
 
-/* ── Run one diagnostic call first to get the raw Resend response ── */
-$diag = Mailer::sendDebug(
+/* ── Quick diagnostic with main FROM address ── */
+$diagMain = Mailer::sendDebug(
     $to,
     'FMC — Diagnostic Test',
-    '<h1>Test</h1><p>This is a diagnostic email from the FMC system.</p>',
+    '<h1>Test</h1><p>Diagnostic email.</p>',
     'FMC Diagnostic Test'
 );
 
-if (!$diag['ok']) {
-    /* Show the exact error and stop — no point sending more */
+/* ── If main FROM fails, try Resend onboarding sender ── */
+$usingFallback = false;
+if (!$diagMain['ok'] && strpos($diagMain['body'] ?? '', 'not verified') !== false) {
+    /* Temporarily override FROM_EMAIL with Resend's allowed test sender */
+    define('FROM_EMAIL_OVERRIDE', 'onboarding@resend.dev');
+    $diagFallback = Mailer::sendDebugFrom(FROM_EMAIL_OVERRIDE, $to, 'FMC — Diagnostic Test (fallback sender)', '<h1>Test</h1><p>Fallback sender test.</p>');
+    if ($diagFallback['ok']) {
+        $usingFallback = true;
+        $diagMain = $diagFallback;
+    }
+}
+
+if (!$diagMain['ok']) {
     jsonOut([
-        'ok'           => false,
-        'diagnosis'    => 'Single test email FAILED — all other sends skipped.',
-        'resend_code'  => $diag['code'],
-        'resend_body'  => $diag['body'],
-        'sent_to'      => $to,
-        'from'         => FROM_EMAIL,
-        'key_set'      => !empty(getenv('RESEND_API_KEY')),
-        'key_prefix'   => substr(getenv('RESEND_API_KEY') ?: '', 0, 8) . '...',
+        'ok'          => false,
+        'problem'     => 'Domain not verified in Resend. See fix instructions below.',
+        'resend_code' => $diagMain['code'],
+        'resend_body' => $diagMain['body'],
+        'from'        => FROM_EMAIL,
+        'key_prefix'  => substr(getenv('RESEND_API_KEY') ?: '', 0, 8) . '...',
+        'fix'         => [
+            'step1' => 'Go to https://resend.com/domains',
+            'step2' => 'Click "Add Domain" and enter: fmc-gov.com',
+            'step3' => 'Add the DNS TXT records shown to your domain registrar',
+            'step4' => 'Wait for verification (usually 10-30 minutes)',
+            'step5' => 'Update ADMIN_NOTIFY_EMAIL to your real email in Railway env vars',
+        ],
+        'env_fixes' => [
+            'ADMIN_NOTIFY_EMAIL' => 'Change to your real email (e.g. dbbbbcx@gmail.com)',
+        ],
     ]);
 }
 
