@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard | FMC</title>
+  <meta name="description" content="FMC administrative dashboard.">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+  <script src="../assets/js/translations.js"></script>
+  <script src="../assets/js/i18n.js"></script>
+</head>
+<body class="admin-body">
+  <div id="site-header"></div>
+
+  <!-- Login gate -->
+  <section class="admin-login" id="adminLogin">
+    <div class="container">
+      <div class="login-card">
+        <div class="login-logo">FMC</div>
+        <h1>Administration</h1>
+        <p class="muted">Enter your administrator credentials to access the case management dashboard.</p>
+        <div class="field-group">
+          <label>Username</label>
+          <input id="adminUser" type="text" placeholder="admin" autocomplete="username">
+        </div>
+        <div class="field-group">
+          <label>Password</label>
+          <input id="adminPass" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div class="field-error" id="adminLoginErr" style="display:none">Invalid credentials.</div>
+        <button class="btn btn-gold btn-lg" id="adminLoginBtn" style="width:100%;justify-content:center">Sign in</button>
+        <p class="muted small" style="margin-top:14px;text-align:center">Demo credentials: <strong>admin</strong> / <strong>fmc-admin-2024</strong></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main shell -->
+  <section class="admin-shell" id="adminShell" style="display:none">
+    <div class="container">
+      <div class="admin-topline">
+        <div>
+          <div class="muted small upcase">FMC</div>
+          <h1 style="margin:4px 0 0">Case management dashboard</h1>
+        </div>
+        <div class="admin-topline-r">
+          <span class="admin-tag">Administrator</span>
+          <button class="btn btn-outline btn-sm" id="adminLogout">Sign out</button>
+        </div>
+      </div>
+
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="complaints">Complaints</button>
+        <button class="admin-tab" data-tab="firms">Licensed firms</button>
+        <button class="admin-tab" data-tab="officers">Officers</button>
+        <button class="admin-tab" data-tab="payment">Payment settings</button>
+      </div>
+
+      <!-- Complaints tab -->
+      <div class="admin-tab-panel active" id="tab-complaints">
+        <div class="admin-grid">
+          <aside class="admin-list-pane">
+            <div class="admin-list-head">
+              <input type="text" id="cmpSearch" placeholder="Search by ref, name, firm…">
+              <select id="cmpFilter">
+                <option value="">All states</option>
+                <option value="received">Received</option>
+                <option value="review">Under review</option>
+                <option value="call">Call scheduled</option>
+                <option value="info">Info requested</option>
+                <option value="decision">Decision</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+            <ul class="admin-list" id="cmpList"></ul>
+          </aside>
+          <main class="admin-detail-pane" id="cmpDetail">
+            <div class="empty-pane">
+              <div class="empty-ico">&#9993;</div>
+              <h3>Select a complaint</h3>
+              <p class="muted">Choose a case from the list to review and manage.</p>
+            </div>
+          </main>
+        </div>
+      </div>
+
+      <!-- Firms tab -->
+      <div class="admin-tab-panel" id="tab-firms">
+        <div class="firms-toolbar">
+          <input type="text" id="firmSearch" placeholder="Search firms…">
+          <select id="firmStatusFilter">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="frozen">Frozen</option>
+          </select>
+          <button class="btn btn-gold" id="addFirmBtn">+ Add firm</button>
+        </div>
+        <div class="firms-table-wrap">
+          <table class="firms-table">
+            <thead>
+              <tr>
+                <th>License</th><th>Name</th><th>Type</th><th>City</th><th>Status</th><th>Complaints</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="firmsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Officers tab -->
+      <div class="admin-tab-panel" id="tab-officers">
+        <div class="officers-toolbar">
+          <h2 style="margin:0">Case officers</h2>
+          <button class="btn btn-gold" id="addOfficerBtn">+ Add officer</button>
+        </div>
+        <div class="officers-grid" id="officersGrid"></div>
+      </div>
+
+      <!-- Payment settings tab -->
+      <div class="admin-tab-panel" id="tab-payment">
+        <div class="pay-settings-grid">
+          <section class="pay-settings-card">
+            <h2 style="margin-top:0">Bank transfer details</h2>
+            <p class="muted small">Shown to complainants who choose bank transfer in the payment popup.</p>
+            <div class="form-grid">
+              <div class="field-group full">
+                <label>Beneficiary (account name)</label>
+                <input id="psBankName" type="text" placeholder="Financial Monitoring Commission">
+              </div>
+              <div class="field-group full">
+                <label>Bank name</label>
+                <input id="psBankBank" type="text" placeholder="Bank of England">
+              </div>
+              <div class="field-group">
+                <label>IBAN</label>
+                <input id="psBankIban" type="text" placeholder="GB29 NWBK 6016 1331 9268 19">
+              </div>
+              <div class="field-group">
+                <label>SWIFT / BIC</label>
+                <input id="psBankSwift" type="text" placeholder="NWBKGB2L">
+              </div>
+              <div class="field-group">
+                <label>Sort code (optional)</label>
+                <input id="psBankSort" type="text" placeholder="60-16-13">
+              </div>
+              <div class="field-group">
+                <label>Account number (optional)</label>
+                <input id="psBankAccount" type="text" placeholder="31926819">
+              </div>
+              <div class="field-group full">
+                <label>Bank address</label>
+                <input id="psBankAddress" type="text" placeholder="Threadneedle St, London EC2R 8AH, UK">
+              </div>
+              <div class="field-group full">
+                <label>Reference instruction</label>
+                <input id="psBankRef" type="text" placeholder="Use the case reference as the payment reference.">
+              </div>
+            </div>
+          </section>
+
+          <section class="pay-settings-card">
+            <h2 style="margin-top:0">Cryptocurrency (USDT)</h2>
+            <p class="muted small">Shown to complainants who choose USDT TRC20 in the payment popup.</p>
+            <div class="form-grid">
+              <div class="field-group">
+                <label>Asset</label>
+                <input id="psCryptoAsset" type="text" placeholder="USDT">
+              </div>
+              <div class="field-group">
+                <label>Network</label>
+                <input id="psCryptoNetwork" type="text" placeholder="TRC20">
+              </div>
+              <div class="field-group full">
+                <label>Wallet address</label>
+                <input id="psCryptoAddress" type="text" placeholder="T...">
+              </div>
+              <div class="field-group full">
+                <label>QR code image (optional)</label>
+                <div class="of-edit-row">
+                  <div class="of-photo-wrap">
+                    <div id="psQrPreview" class="qr-preview-empty">QR</div>
+                    <label class="btn btn-outline btn-sm" for="psQrInput">Upload QR</label>
+                    <input type="file" id="psQrInput" accept="image/*" style="display:none">
+                    <button class="btn-link" id="psQrClear" type="button" style="display:none">Remove image</button>
+                  </div>
+                  <p class="muted small" style="flex:1;margin:0">If no image is uploaded, a QR will be generated automatically from the wallet address.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="pay-settings-foot">
+            <span class="muted small" id="psSavedNote"></span>
+            <button class="btn btn-gold" id="psSave">Save payment settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Firm edit modal -->
+  <div class="modal-overlay" id="firmModal" role="dialog" aria-modal="true">
+    <div class="modal modal-wide">
+      <div class="modal-head">
+        <div>
+          <h2 style="margin:0" id="firmModalTitle">Edit firm</h2>
+          <div class="sub" id="firmModalSub">Manage licensed firm record</div>
+        </div>
+        <button class="modal-close" data-close-firm aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field-group full">
+            <label>Firm name</label>
+            <input id="fmName" type="text">
+          </div>
+          <div class="field-group">
+            <label>License ID</label>
+            <input id="fmId" type="text" placeholder="FMC-2018-1042">
+          </div>
+          <div class="field-group">
+            <label>Type</label>
+            <input id="fmType" type="text" placeholder="Brokerage">
+          </div>
+          <div class="field-group">
+            <label>City</label>
+            <input id="fmCity" type="text">
+          </div>
+          <div class="field-group">
+            <label>Country</label>
+            <input id="fmCountry" type="text">
+          </div>
+          <div class="field-group">
+            <label>Licensed since</label>
+            <input id="fmSince" type="text" placeholder="2018">
+          </div>
+          <div class="field-group">
+            <label>CEO</label>
+            <input id="fmCeo" type="text">
+          </div>
+          <div class="field-group">
+            <label>Status</label>
+            <select id="fmStatus"><option value="active">Active</option><option value="frozen">Frozen</option></select>
+          </div>
+          <div class="field-group">
+            <label>Open complaints</label>
+            <input id="fmComplaints" type="number" min="0">
+          </div>
+          <div class="field-group">
+            <label>Regulatory capital</label>
+            <input id="fmCapital" type="text" placeholder="£25,000,000">
+          </div>
+          <div class="field-group">
+            <label>Website</label>
+            <input id="fmWeb" type="text" placeholder="www.example.com">
+          </div>
+          <div class="field-group full">
+            <label>Services (comma separated)</label>
+            <input id="fmServices" type="text" placeholder="FX, CFDs, Options">
+          </div>
+          <div class="field-group full">
+            <label>Summary</label>
+            <textarea id="fmSummary" rows="3"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" data-close-firm>Cancel</button>
+        <button class="btn btn-red" id="firmDelete" style="display:none">Delete firm</button>
+        <button class="btn btn-gold" id="firmSave">Save firm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Officer edit modal -->
+  <div class="modal-overlay" id="officerModal" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div class="modal-head">
+        <div>
+          <h2 style="margin:0" id="ofModalTitle">Add officer</h2>
+          <div class="sub">Case officer profile</div>
+        </div>
+        <button class="modal-close" data-close-officer aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="of-edit-row">
+          <div class="of-photo-wrap">
+            <div id="ofPreview" class="of-avatar of-avatar-init pending">?</div>
+            <label class="btn btn-outline btn-sm" for="ofPhotoInput">Upload photo</label>
+            <input type="file" id="ofPhotoInput" accept="image/*" style="display:none">
+            <button class="btn-link" id="ofPhotoClear" type="button" style="display:none">Remove photo</button>
+          </div>
+          <div class="form-grid" style="flex:1">
+            <div class="field-group full">
+              <label>Full name</label>
+              <input id="ofName" type="text" placeholder="Olivia Hartwell">
+            </div>
+            <div class="field-group full">
+              <label>Title</label>
+              <input id="ofTitle" type="text" placeholder="Senior Investigations Officer">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" data-close-officer>Cancel</button>
+        <button class="btn btn-red" id="ofDelete" style="display:none">Delete officer</button>
+        <button class="btn btn-gold" id="ofSave">Save officer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/companies.js"></script>
+  <script src="../assets/js/admin.js"></script>
+</body>
+</html>

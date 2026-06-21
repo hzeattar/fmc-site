@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact | FMC</title>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+  <script src="../assets/js/translations.js"></script>
+  <script src="../assets/js/i18n.js"></script>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <section class="page-hero">
+    <div class="container">
+      <div class="breadcrumb"><a href="../index.html" data-i18n="common.home">Home</a><span>/</span><span data-i18n="nav.contact">Contact</span></div>
+      <h1 data-i18n="ct.h1">Contact the FMC</h1>
+      <p data-i18n="ct.intro">Reach the right office for licensing, complaints, media, or general enquiries.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="grid-2">
+        <div>
+          <h2 data-i18n="ct.offices">Offices</h2>
+          <div class="value-card" style="margin-bottom:14px"><h3 data-i18n="ct.b1">Headquarters (London)</h3><p class="muted" data-i18n-html="ct.b2">Financial Monitoring Commission<br>25 Canary Wharf, London E14 5AB<br>United Kingdom<br>Switchboard: +44 (0)20 7946 0100</p></div>
+          <div class="value-card" style="margin-bottom:14px"><h3 data-i18n="ct.b3">Office of Investor Protection</h3><p class="muted" data-i18n-html="ct.b4">Complaints, advisories, and investor support.<br>Email: protect@fmc.org.uk<br>Helpline: +44 (0)20 7946 0123</p></div>
+          <div class="value-card" style="margin-bottom:14px"><h3 data-i18n-html="ct.b5">Division of Authorisation &amp; Registration</h3><p class="muted" data-i18n-html="ct.b6">Firm applications and licence verification.<br>Email: authorisation@fmc.org.uk</p></div>
+          <div class="value-card" style="margin-bottom:14px"><h3 data-i18n="ct.b7">Division of Enforcement</h3><p class="muted" data-i18n-html="ct.b8">Misconduct reports and whistleblower tips.<br>Email: enforcement@fmc.org.uk</p></div>
+          <div class="value-card"><h3 data-i18n="ct.b9">Office of Public Affairs</h3><p class="muted" data-i18n-html="ct.b10">Media enquiries and statements.<br>Email: press@fmc.org.uk<br>Press office: +44 (0)20 7946 0150</p></div>
+          <div class="callout" style="margin-top:18px" data-i18n-html="ct.callout"><strong>Filing a complaint?</strong> Please use the guided <a href="complaint.html">complaint form</a> so your case is recorded with a tracking number.</div>
+        </div>
+        <div>
+          <h2 data-i18n="ct.send">Send a message</h2>
+          <div class="wizard-panel">
+            <form id="contactForm" onsubmit="event.preventDefault(); this.style.display='none'; document.getElementById('contactOk').style.display='block';">
+              <div class="field-group" style="margin-bottom:14px"><label><span data-i18n="cf.f.fullName">Full name</span> <span class="req">*</span></label><input required type="text"></div>
+              <div class="field-group" style="margin-bottom:14px"><label><span data-i18n="cf.f.email">Email</span> <span class="req">*</span></label><input required type="email"></div>
+              <div class="field-group" style="margin-bottom:14px"><label data-i18n="ct.subject">Subject</label>
+                <select><option data-i18n="ct.opt1">General enquiry</option><option data-i18n="ct.opt2">Licensing</option><option data-i18n="ct.opt3">Complaint follow-up</option><option data-i18n="ct.opt4">Media</option></select>
+              </div>
+              <div class="field-group" style="margin-bottom:14px"><label><span data-i18n="ct.message">Message</span> <span class="req">*</span></label><textarea required></textarea></div>
+              <button class="btn btn-gold" type="submit" data-i18n="ct.sendBtn">Send message</button>
+            </form>
+            <div id="contactOk" style="display:none;text-align:center">
+              <div class="success-icon">&#10003;</div>
+              <h3 data-i18n="ct.sentH">Message sent</h3>
+              <p class="muted" data-i18n="ct.sentP">Thank you. The relevant FMC office will respond by email.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-alt">
+    <div class="container prose">
+      <h2 class="sec" data-i18n="ct.b11">Contact directory</h2>
+      <p data-i18n="ct.b12">Reaching the right team first means a faster response. Please do not send investment money, account passwords, or full card numbers by email.</p>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th data-i18n-html="ct.b13">I want to&hellip;</th><th data-i18n="ct.b14">Contact</th><th data-i18n="ct.b15">Channel</th></tr></thead>
+          <tbody>
+            <tr><td data-i18n="ct.b16">File or follow up a complaint</td><td data-i18n="ct.b17">Office of Investor Protection</td><td data-i18n-html="ct.b18"><a href="complaint.html">Complaint form</a> / +44 (0)20 7946 0123</td></tr>
+            <tr><td data-i18n="ct.b19">Check if a firm is licensed</td><td data-i18n="ct.b20">Public register</td><td data-i18n-html="ct.b21"><a href="companies.html">Search the register</a></td></tr>
+            <tr><td data-i18n="ct.b22">Apply for or verify a licence</td><td data-i18n-html="ct.b23">Authorisation &amp; Registration</td><td>authorisation@fmc.org.uk</td></tr>
+            <tr><td data-i18n="ct.b24">Report misconduct / whistleblow</td><td data-i18n="ct.b25">Division of Enforcement</td><td>enforcement@fmc.org.uk</td></tr>
+            <tr><td data-i18n="ct.b26">Make a media enquiry</td><td data-i18n="ct.b27">Office of Public Affairs</td><td>press@fmc.org.uk / +44 (0)20 7946 0150</td></tr>
+            <tr><td data-i18n="ct.b28">Respond to a consultation</td><td data-i18n="ct.b29">Policy team</td><td>consultations@fmc.org.uk</td></tr>
+            <tr><td data-i18n="ct.b30">Make a data-protection request</td><td data-i18n="ct.b31">Data Protection Officer</td><td>dpo@fmc.org.uk</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid-2">
+        <div class="value-card"><h3 data-i18n="ct.b32">Opening hours</h3><p class="muted" data-i18n-html="ct.b33">Helpline &amp; switchboard: Monday to Friday, 09:00&ndash;18:00 (London time), excluding public holidays. The complaints portal and register are available online 24/7.</p></div>
+        <div class="value-card"><h3 data-i18n="ct.b34">Postal address</h3><p class="muted">Financial Monitoring Commission<br>25 Canary Wharf<br>London E14 5AB<br>United Kingdom</p></div>
+      </div>
+
+      <h2 class="sec" data-i18n-html="ct.b35">Accessibility &amp; languages</h2>
+      <p data-i18n-html="ct.b36">We are committed to being accessible to everyone. If you need information in an alternative format &mdash; large print, easy-read, or another language &mdash; or require a British Sign Language interpreter or other reasonable adjustment, please tell us and we will arrange it. This website supports seven languages, which you can switch using the globe menu in the header.</p>
+
+      <h2 class="sec" data-i18n="ct.b37">Frequently asked questions</h2>
+      <div class="faq">
+        <details><summary data-i18n="ct.b38">How quickly will I get a reply?</summary><div class="a"><p data-i18n="ct.b39">We aim to acknowledge emails within five working days and media enquiries within two hours during office hours. Complaints submitted through the portal receive a tracking number immediately.</p></div></details>
+        <details><summary data-i18n="ct.b40">Can I visit your office in person?</summary><div class="a"><p data-i18n-html="ct.b41">Our offices are not a public walk-in service. Please use the helpline, email, or online portal &mdash; meetings are by appointment only.</p></div></details>
+        <details><summary data-i18n-html="ct.b42">I think a firm is using your name to scam me &mdash; what do I do?</summary><div class="a"><p data-i18n-html="ct.b43">Do not send any money. Verify the firm on the <a href="companies.html">register</a>, then report the approach via the <a href="complaint.html">complaint form</a> and to enforcement@fmc.org.uk.</p></div></details>
+      </div>
+    </div>
+  </section>
+
+  <div id="site-footer"></div>
+  <script src="../assets/js/main.js"></script>
+</body>
+</html>

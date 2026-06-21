@@ -1,0 +1,13 @@
+# Pretty URLs (without .html extension)
+/about            /pages/about.html         200
+/companies        /pages/companies.html     200
+/complaint        /pages/complaint.html     200
+/contact          /pages/contact.html       200
+/education        /pages/education.html     200
+/enforcement      /pages/enforcement.html   200
+/law              /pages/law.html           200
+/oversight        /pages/oversight.html     200
+/press            /pages/press.html         200
+/reports          /pages/reports.html       200
+/track            /pages/track.html         200
+/admin            /pages/admin.html         200

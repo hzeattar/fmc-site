@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Licensed Investment Firms | FMC</title>
+  <meta name="description" content="Search the FMC public register of licensed investment firms. Verify a license before you invest.">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+  <script src="../assets/js/translations.js"></script>
+  <script src="../assets/js/i18n.js"></script>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <section class="page-hero">
+    <div class="container">
+      <div class="breadcrumb"><a href="../index.html" data-i18n="common.home">Home</a><span>/</span><span data-i18n="comp.crumb">Licensed Investment Firms</span></div>
+      <h1 data-i18n="comp.h1">Licensed Investment Firms</h1>
+      <p data-i18n="comp.intro">The official FMC register of investment firms authorized to serve the public. Click any firm to view its full license details. Always verify a license here before depositing funds.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="callout warn" data-i18n-html="comp.howto">
+        <strong>How to use this register:</strong> a genuine firm appears here with a matching <em>FMC license number</em>. If a company is not listed, or its details do not match, do not invest &mdash; <a href="complaint.html">report it to the FMC</a>.
+      </div>
+
+      <div class="company-toolbar">
+        <div class="field">
+          <label for="compSearch" data-i18n="comp.search">Search</label>
+          <input id="compSearch" type="text" placeholder="Firm name, license number, or country" data-i18n-ph="comp.search.ph">
+        </div>
+        <div class="field" style="max-width:220px">
+          <label for="compCategory" data-i18n="comp.type">Firm type</label>
+          <select id="compCategory">
+            <option value="" data-i18n="comp.type.all">All types</option>
+            <option value="broker" data-i18n="comp.type.broker">Brokerage / Broker</option>
+            <option value="asset" data-i18n="comp.type.asset">Asset / Pension Manager</option>
+            <option value="adviser" data-i18n="comp.type.adviser">Investment Adviser</option>
+            <option value="venue" data-i18n="comp.type.venue">Trading Venue</option>
+            <option value="clearing" data-i18n="comp.type.clearing">Clearing Organization</option>
+            <option value="bank" data-i18n="comp.type.bank">Investment Bank</option>
+          </select>
+        </div>
+        <div class="field" style="max-width:200px">
+          <label for="compStatus" data-i18n="comp.status">Status</label>
+          <select id="compStatus">
+            <option value="" data-i18n="comp.status.all">All statuses</option>
+            <option value="active" data-i18n="comp.status.active">Licence active</option>
+            <option value="frozen" data-i18n="comp.status.frozen">Licence frozen</option>
+            <option value="complaints" data-i18n="comp.status.withcomplaints">With open complaints</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="muted" id="compCount" style="display:none"></p>
+      <div class="companies-grid" id="companiesGrid"></div>
+      <div class="pager" id="compPager"></div>
+    </div>
+  </section>
+
+  <!-- Company detail popup -->
+  <div class="modal-overlay" id="companyModal" role="dialog" aria-modal="true">
+    <div class="modal"></div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/companies.js"></script>
+</body>
+</html>

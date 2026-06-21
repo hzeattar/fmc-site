@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Track a Complaint | FMC</title>
+  <meta name="description" content="Track the status of a complaint you filed with the FMC using your reference number.">
+  <link rel="stylesheet" href="../assets/css/styles.css">
+  <script src="../assets/js/translations.js"></script>
+  <script src="../assets/js/i18n.js"></script>
+</head>
+<body>
+  <div id="site-header"></div>
+
+  <section class="page-hero">
+    <div class="container">
+      <div class="breadcrumb"><a href="../index.html" data-i18n="common.home">Home</a><span>/</span><a href="enforcement.html" data-i18n="nav.enforcement">Enforcement</a><span>/</span><span data-i18n="tk.crumb">Track a Complaint</span></div>
+      <h1 data-i18n="tk.h1">Track a Complaint</h1>
+      <p data-i18n="tk.intro">Enter the reference number you received when you filed your complaint to follow its progress.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <!-- Lookup card -->
+      <div class="track-card" id="lookupCard">
+        <h2 style="margin-top:0" data-i18n="tk.cardH">Check your case status</h2>
+        <p class="muted" data-i18n-html="tk.refHint">Your reference number looks like <strong>FMC-CMP-123456</strong>.</p>
+        <div class="track-form">
+          <input id="trackInput" type="text" placeholder="FMC-CMP-XXXXXX" aria-label="Reference number" data-i18n-ph="tk.ph">
+          <button class="btn btn-gold" id="trackBtn" data-i18n="tk.btn">Track</button>
+        </div>
+        <div class="track-error" id="trackError"></div>
+      </div>
+
+      <!-- Case detail (rendered by track.js when a valid ref is found) -->
+      <div class="case-shell" id="caseShell" style="display:none">
+        <div class="case-head">
+          <div class="case-head-l">
+            <div class="muted small upcase" data-i18n="tk.ref">Reference number</div>
+            <div class="ref-big" id="caseRef">—</div>
+            <div class="muted small" id="caseFiledLine">—</div>
+          </div>
+          <div class="case-head-r">
+            <span class="status-pill" id="caseStatePill"></span>
+            <button class="btn btn-outline btn-sm" id="caseChangeRef" data-i18n="tk.changeRef">Track a different case</button>
+          </div>
+        </div>
+
+        <div class="case-grid">
+          <!-- Left column: applicant + case info + officer -->
+          <div class="case-col-l">
+            <div class="case-card">
+              <h3 class="case-card-h" data-i18n="tk.applicant">Information you provided</h3>
+              <div id="caseApplicant"></div>
+            </div>
+
+            <div class="case-card">
+              <h3 class="case-card-h" data-i18n="tk.caseDetails">Case details</h3>
+              <div class="kv-grid" id="caseDetails"></div>
+              <div class="case-reason" id="caseReason"></div>
+            </div>
+
+            <div class="case-card" id="caseOfficerCard">
+              <h3 class="case-card-h" data-i18n="tk.officer">Assigned case officer</h3>
+              <div id="caseOfficer"></div>
+            </div>
+          </div>
+
+          <!-- Right column: timeline + chat + uploads -->
+          <div class="case-col-r">
+            <div class="case-card">
+              <h3 class="case-card-h" data-i18n="tk.progress">Case progress</h3>
+              <ol class="case-timeline" id="caseTimeline"></ol>
+
+              <button class="btn btn-gold" id="payNowBtn" data-i18n="tk.payNow" style="display:none;margin-top:8px">Pay now</button>
+            </div>
+
+            <div class="case-card chat-launcher-card">
+              <button class="chat-launcher" id="chatLauncher" type="button" aria-haspopup="dialog" aria-controls="chatModal">
+                <span class="chat-launcher-ico" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </span>
+                <span class="chat-launcher-text">
+                  <span class="chat-launcher-title" data-i18n="tk.chat">Messages with your case officer</span>
+                  <span class="chat-launcher-sub" id="chatLauncherSub" data-i18n="tk.chat.launch.sub">Open the secure chat to send messages to your case officer.</span>
+                </span>
+                <span class="chat-launcher-badge" id="chatLauncherBadge" hidden></span>
+                <span class="chat-launcher-arrow" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></svg>
+                </span>
+              </button>
+            </div>
+
+            <div class="case-card">
+              <h3 class="case-card-h" data-i18n="tk.extraFiles">Upload additional files</h3>
+              <p class="muted small" data-i18n="tk.extraFiles.hint">Upload any extra documents your case officer asks for. Files are attached to your case file for review.</p>
+              <div class="upload" id="uploadExtra">
+                <input type="file" id="extraInput" accept="image/*,.pdf,.doc,.docx">
+                <div class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V8"/><path d="M8.5 11.5L12 8l3.5 3.5"/><path d="M6.5 18.5A3.8 3.8 0 0 1 6.8 11a5.4 5.4 0 0 1 10.4 1.3A3.4 3.4 0 0 1 17.3 18.5z"/></svg></div>
+                <div class="u-title" data-i18n="tk.extraFiles.title">Click to choose a file</div>
+                <div class="u-sub" data-i18n="tk.extraFiles.sub">JPG, PNG, PDF, DOC</div>
+              </div>
+              <ul class="extra-list" id="extraList"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="muted center" style="margin-top:24px" data-i18n-html="tk.bottom">
+        Haven't filed yet? <a href="complaint.html">File a complaint</a> &middot; Need help? <a href="contact.html">Contact the FMC</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- Payment modal (popup) -->
+  <div class="modal-overlay" id="payModal" role="dialog" aria-modal="true">
+    <div class="modal modal-wide">
+      <div class="modal-head">
+        <div class="logo">£</div>
+        <div>
+          <h2 style="margin:0" data-i18n="pay.head">Pay regulatory amount</h2>
+          <div class="sub" data-i18n="pay.sub">Secure payment to the Financial Monitoring Commission</div>
+        </div>
+        <button class="modal-close" id="payClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="pay-amount-line">
+          <span class="muted" data-i18n="pay.amount">Amount due</span>
+          <span class="pay-amount" id="payAmount">—</span>
+        </div>
+        <div class="pay-amount-line">
+          <span class="muted" data-i18n="pay.case">Case</span>
+          <span id="payCaseRef">—</span>
+        </div>
+        <div class="pay-amount-line">
+          <span class="muted" data-i18n="pay.statusLabel">Status</span>
+          <span class="pay-status-pill" id="payStatusPill">—</span>
+        </div>
+
+        <div class="pay-tabs" role="tablist">
+          <button class="pay-tab active" data-paytab="bank"   role="tab" data-i18n="pay.tab.bank">Bank transfer</button>
+          <button class="pay-tab"        data-paytab="card"   role="tab" data-i18n="pay.tab.card">Card</button>
+          <button class="pay-tab"        data-paytab="crypto" role="tab" data-i18n="pay.tab.crypto">USDT (TRC20)</button>
+        </div>
+
+        <!-- Bank tab -->
+        <div class="pay-panel active" id="payPanel-bank" role="tabpanel">
+          <p class="muted small" data-i18n="pay.bank.intro">Transfer the regulatory amount to the account below. Use your case reference as the payment reference so we can match the funds to your file.</p>
+          <div class="bank-box" id="payBankBox"></div>
+        </div>
+
+        <!-- Card tab -->
+        <div class="pay-panel" id="payPanel-card" role="tabpanel">
+          <p class="muted small" data-i18n="pay.card.intro">Pay using a Visa or Mastercard credit/debit card.</p>
+          <div class="form-grid">
+            <div class="field-group full">
+              <label data-i18n="pay.cardName">Name on card</label>
+              <input id="payName" type="text" placeholder="John A. Smith" autocomplete="off">
+            </div>
+            <div class="field-group full">
+              <label data-i18n="pay.cardNumber">Card number</label>
+              <input id="payNumber" type="text" inputmode="numeric" placeholder="0000 0000 0000 0000" maxlength="19" autocomplete="off">
+            </div>
+            <div class="field-group">
+              <label data-i18n="pay.cardExp">Expiry (mm/yy)</label>
+              <input id="payExp" type="text" inputmode="numeric" placeholder="mm/yy" maxlength="5" autocomplete="off">
+            </div>
+            <div class="field-group">
+              <label data-i18n="pay.cardCvc">CVC</label>
+              <input id="payCvc" type="text" inputmode="numeric" placeholder="123" maxlength="4" autocomplete="off">
+            </div>
+          </div>
+          <div class="card-error-banner" id="payCardError" style="display:none" data-i18n="pay.card.err">This payment method is not available for your country, or the card you used is not supported for international transactions. Please choose another method.</div>
+          <div class="modal-foot" style="padding:14px 0 0 0;border:0">
+            <button class="btn btn-gold" id="payCardSubmit" data-i18n="pay.card.submit">Pay with card</button>
+          </div>
+        </div>
+
+        <!-- Crypto tab -->
+        <div class="pay-panel" id="payPanel-crypto" role="tabpanel">
+          <p class="muted small" data-i18n="pay.crypto.intro">Send the exact amount in USDT on the TRC20 (Tron) network to the wallet address below. Other networks (ERC20, BEP20…) are not supported and will be lost.</p>
+          <div class="crypto-grid">
+            <div class="crypto-qr" id="payCryptoQr"></div>
+            <div class="crypto-info">
+              <div class="crypto-card">
+                <span class="crypto-card-label" data-i18n="pay.crypto.asset">Asset</span>
+                <div class="crypto-asset" id="payCryptoAsset">USDT — TRC20</div>
+              </div>
+              <div class="crypto-card">
+                <span class="crypto-card-label" data-i18n="pay.crypto.address">Wallet address</span>
+                <div class="crypto-address-row">
+                  <code class="crypto-address" id="payCryptoAddress">—</code>
+                  <button class="btn btn-outline btn-sm" id="payCopyAddress" data-i18n="pay.crypto.copy">Copy</button>
+                </div>
+              </div>
+              <div class="crypto-warn" data-i18n="pay.crypto.warn">Send only USDT on the TRC20 network. Sending any other asset or using another network will result in permanent loss of funds.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-outline" id="payCancel" data-i18n="cta.close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat modal (popup) -->
+  <div class="modal-overlay" id="chatModal" role="dialog" aria-modal="true" aria-labelledby="chatModalTitle">
+    <div class="modal modal-chat">
+      <header class="chat-modal-head">
+        <div class="chat-modal-info">
+          <div class="chat-modal-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="chat-modal-meta">
+            <h2 class="chat-modal-title" id="chatModalTitle" data-i18n="tk.chat">Messages with your case officer</h2>
+            <p class="chat-modal-sub" id="chatModalSub" data-i18n="tk.chat.modalSub">Secure channel · monitored by the FMC</p>
+          </div>
+        </div>
+        <button class="chat-modal-close" id="chatModalClose" aria-label="Close" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </header>
+      <div class="modal-body chat-modal-body">
+        <div class="chat-box" id="chatBox"></div>
+        <div class="chat-input">
+          <textarea id="chatText" rows="2" placeholder="Type a message…" data-i18n-ph="tk.chat.ph"></textarea>
+          <button class="btn btn-gold btn-sm" id="chatSend" data-i18n="tk.chat.send">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="site-footer"></div>
+  <script src="../assets/js/main.js"></script>
+  <script src="../assets/js/track.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+RewriteEngine On
+
+# Block direct access to sensitive includes
+RewriteRule ^inc/ - [F,L]
+RewriteRule ^backend/.*\.php$ - [L]
+
+# Route API requests correctly (Apache mod_rewrite passes through)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^api/(.*)$ api/$1 [L]
+
+# PHP handling for admin/backend
+RewriteRule ^backend/?$ backend/index.php [L]
+RewriteRule ^backend/login/?$ backend/login.php [L]
+
+Options -Indexes
+ServerSignature Off
