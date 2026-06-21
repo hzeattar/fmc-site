@@ -6,6 +6,7 @@ ini_set('session.save_path', sys_get_temp_dir());
 session_start();
 
 require_once __DIR__ . '/../inc/db.php';
+require_once __DIR__ . '/../inc/mailer.php';
 
 requireMethod('POST');
 
@@ -19,6 +20,8 @@ if (!$ref) {
     jsonOut(['ok' => false, 'error' => 'Reference required'], 400);
 }
 
+$newState = $rec['state'] ?? 'received';
+
 /* Map frontend state to DB status column */
 $stateMap = [
     'received' => 'pending',
@@ -28,25 +31,54 @@ $stateMap = [
     'decision' => 'under_review',
     'closed'   => 'closed',
 ];
-$state    = $rec['state'] ?? 'received';
-$dbStatus = $stateMap[$state] ?? 'pending';
-
-$rawJson = json_encode($rec, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$dbStatus = $stateMap[$newState] ?? 'pending';
+$rawJson  = json_encode($rec, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 try {
-    $pdo  = DB::pdo();
-    /* Try with raw_data, fall back if column missing */
+    $pdo = DB::pdo();
+
+    /* ── Read old state + complainant email before updating ── */
+    $oldState         = 'received';
+    $complainantEmail = '';
+    $complainantName  = '';
+
     try {
-        $stmt = $pdo->prepare(
+        $stmtOld = $pdo->prepare("SELECT raw_data FROM fmc_complaints WHERE reference = ? LIMIT 1");
+        $stmtOld->execute([$ref]);
+        $oldRow = $stmtOld->fetch();
+        if ($oldRow && !empty($oldRow['raw_data'])) {
+            $oldRec = json_decode($oldRow['raw_data'], true) ?: [];
+            $oldState         = $oldRec['state']                   ?? 'received';
+            $complainantEmail = $oldRec['complainant']['email']    ?? '';
+            $complainantName  = $oldRec['complainant']['fullName'] ?? '';
+        }
+    } catch (\Throwable $ignored) {}
+
+    /* ── Persist updated record ── */
+    try {
+        $pdo->prepare(
             "UPDATE fmc_complaints SET raw_data = ?, status = ?, updated_at = NOW() WHERE reference = ?"
-        );
-        $stmt->execute([$rawJson, $dbStatus, $ref]);
+        )->execute([$rawJson, $dbStatus, $ref]);
     } catch (PDOException $e2) {
         if (strpos($e2->getMessage(), 'Unknown column') !== false || strpos($e2->getMessage(), 'raw_data') !== false) {
             $pdo->prepare("UPDATE fmc_complaints SET status = ?, updated_at = NOW() WHERE reference = ?")
                 ->execute([$dbStatus, $ref]);
         } else {
             throw $e2;
+        }
+    }
+
+    /* ── Send email when state actually changed ── */
+    if ($newState !== $oldState && $complainantEmail) {
+        $extra = [
+            'appointment' => $rec['appointment'] ?? null,
+            'infoRequest' => $rec['infoRequest'] ?? null,
+            'decision'    => $rec['decision']    ?? null,
+        ];
+        try {
+            Mailer::stateChange($ref, $complainantEmail, $complainantName, $newState, $extra);
+        } catch (\Throwable $mailErr) {
+            error_log('STATE CHANGE MAIL: ' . $mailErr->getMessage());
         }
     }
 

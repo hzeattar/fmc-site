@@ -117,7 +117,7 @@ if (isset($data['complainant']) && is_array($data['complainant'])) {
 
         try { Mailer::complaintConfirmation($email, $ref, $record['complainant']['fullName']); }
         catch (\Throwable $e) { error_log('MAIL: ' . $e->getMessage()); }
-        try { Mailer::staffNotification($ref); }
+        try { Mailer::staffNotification($ref, $record['complainant']['fullName'], $record['case']['firm']); }
         catch (\Throwable $e) { error_log('MAIL: ' . $e->getMessage()); }
 
         jsonOut(['ok' => true, 'ref' => $ref, 'reference' => $ref]);
