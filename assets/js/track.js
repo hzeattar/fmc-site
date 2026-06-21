@@ -20,36 +20,29 @@
   function saveAll() {}
   function loadCase(ref) { return (_caseRec && _caseRec.ref === ref) ? _caseRec : null; }
   function saveCase(rec) { _caseRec = rec; /* in-memory; actual saves go via dedicated endpoints */ }
+
+  /* ---------- Payment settings (DB-backed) ---------- */
   var PAYMENT_DEFAULTS = {
     bank: {
       accountName: "Financial Monitoring Commission",
-      bankName: "Bank of England",
-      iban: "GB29 NWBK 6016 1331 9268 19",
-      swift: "NWBKGB2L",
-      sort: "60-16-13",
-      accountNumber: "31926819",
-      address: "Threadneedle St, London EC2R 8AH, United Kingdom",
-      reference: "Use the case reference (e.g. FMC-2026-XXXXXX) as the payment reference."
+      bankName: "",
+      iban: "", swift: "", sort: "", accountNumber: "", address: "",
+      reference: "Use your case reference (e.g. FMC-CMP-XXXXXX) as the payment reference."
     },
-    crypto: {
-      asset: "USDT",
-      network: "TRC20",
-      address: "TXyZAbC123456789DemoWalletAddress",
-      qr: ""
-    }
+    crypto: { asset: "USDT", network: "TRC20", address: "", qr: "" }
   };
+  var _paySettings = null;
   function loadPaymentSettings() {
-    try {
-      var raw = localStorage.getItem(PS_KEY);
-      if (raw) {
-        var p = JSON.parse(raw);
-        return {
-          bank: Object.assign({}, PAYMENT_DEFAULTS.bank, p.bank || {}),
-          crypto: Object.assign({}, PAYMENT_DEFAULTS.crypto, p.crypto || {})
-        };
-      }
-    } catch (e) {}
-    return JSON.parse(JSON.stringify(PAYMENT_DEFAULTS));
+    return _paySettings || JSON.parse(JSON.stringify(PAYMENT_DEFAULTS));
+  }
+  function fetchPaymentSettings(done) {
+    fetch("/api/payment_settings.php")
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok && data.settings) _paySettings = data.settings;
+        if (done) done();
+      })
+      .catch(function() { if (done) done(); });
   }
 
   /* ---------- Payment status helpers ---------- */
@@ -647,9 +640,12 @@
     pill.className = "status-pill " + payStatusPill(st);
     pill.textContent = payStatusLabel(st);
 
-    var ps = loadPaymentSettings();
-    renderBankPanel(ps.bank || {});
-    renderCryptoPanel(ps.crypto || {});
+    /* Fetch fresh payment settings from DB then render */
+    fetchPaymentSettings(function() {
+      var ps = loadPaymentSettings();
+      renderBankPanel(ps.bank || {});
+      renderCryptoPanel(ps.crypto || {});
+    });
 
     // reset card form
     ["payName", "payNumber", "payExp", "payCvc"].forEach(function (id) { var el = $("#" + id); if (el) el.value = ""; });

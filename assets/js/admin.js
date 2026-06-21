@@ -84,39 +84,38 @@
   }
   function saveOfficers(arr) { try { localStorage.setItem("fmc_officers", JSON.stringify(arr)); } catch (e) {} }
 
-  /* ---------- Payment settings (global) ---------- */
+  /* ---------- Payment settings (DB-backed via API) ---------- */
   var PAYMENT_DEFAULTS = {
     bank: {
       accountName: "Financial Monitoring Commission",
       bankName: "Bank of England",
-      iban: "GB29 NWBK 6016 1331 9268 19",
-      swift: "NWBKGB2L",
-      sort: "60-16-13",
-      accountNumber: "31926819",
-      address: "Threadneedle St, London EC2R 8AH, United Kingdom",
-      reference: "Use the case reference (e.g. FMC-2026-XXXXXX) as the payment reference."
+      iban: "", swift: "", sort: "", accountNumber: "", address: "",
+      reference: "Use your case reference (e.g. FMC-CMP-XXXXXX) as the payment reference."
     },
-    crypto: {
-      asset: "USDT",
-      network: "TRC20",
-      address: "TXyZAbC123456789DemoWalletAddress",
-      qr: ""
-    }
+    crypto: { asset: "USDT", network: "TRC20", address: "", qr: "" }
   };
+  var _paySettingsCache = null;
   function loadPaymentSettings() {
-    try {
-      var raw = localStorage.getItem("fmc_payment_settings");
-      if (raw) {
-        var p = JSON.parse(raw);
-        return {
-          bank: Object.assign({}, PAYMENT_DEFAULTS.bank, p.bank || {}),
-          crypto: Object.assign({}, PAYMENT_DEFAULTS.crypto, p.crypto || {})
-        };
-      }
-    } catch (e) {}
-    return JSON.parse(JSON.stringify(PAYMENT_DEFAULTS));
+    return _paySettingsCache || JSON.parse(JSON.stringify(PAYMENT_DEFAULTS));
   }
-  function savePaymentSettings(o) { try { localStorage.setItem("fmc_payment_settings", JSON.stringify(o)); } catch (e) {} }
+  function fetchPaymentSettings(done) {
+    fetch("/api/payment_settings.php", { credentials: "include" })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok && data.settings) _paySettingsCache = data.settings;
+        if (done) done();
+      })
+      .catch(function() { if (done) done(); });
+  }
+  function savePaymentSettings(o) {
+    _paySettingsCache = o;
+    fetch("/api/payment_settings.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(o)
+    }).catch(function(){});
+  }
 
   /* ---------- Effective firms list (from DB cache) ---------- */
   /* effectiveFirms() and fetchFirmsFromApi() defined above */
@@ -164,8 +163,8 @@
   function renderAll() {
     fetchCasesFromApi(renderComplaintsList);
     fetchFirmsFromApi(renderFirms);
+    fetchPaymentSettings(renderPaymentSettings);
     renderOfficers();
-    renderPaymentSettings();
   }
 
   /* ===========================================================

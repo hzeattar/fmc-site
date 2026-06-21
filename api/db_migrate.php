@@ -47,7 +47,15 @@ try {
     )->execute([$hash]);
     $done[] = 'Admin account ensured';
 
-    /* ── 5. Ensure fmc_companies has all required columns ── */
+    /* ── 5. Ensure fmc_settings table ── */
+    $pdo->exec("CREATE TABLE IF NOT EXISTS fmc_settings (
+        `key`       VARCHAR(100) NOT NULL PRIMARY KEY,
+        `value`     MEDIUMTEXT   NOT NULL,
+        updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $done[] = 'fmc_settings table ensured';
+
+    /* ── 5b. Ensure fmc_companies has all required columns ── */
     $compCols = [
         "ALTER TABLE fmc_companies ADD COLUMN type        VARCHAR(100)  DEFAULT NULL",
         "ALTER TABLE fmc_companies ADD COLUMN country     VARCHAR(100)  DEFAULT NULL",
