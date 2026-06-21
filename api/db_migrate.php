@@ -51,17 +51,24 @@ try {
     $deleted = $pdo->exec("DELETE FROM fmc_sessions WHERE expires < NOW()");
     if ($deleted > 0) $done[] = "Cleared {$deleted} expired session(s)";
 
-    /* ── 6. Backfill raw_data for pre-migration complaints ── */
+    /* ── 6. Backfill raw_data for NULL/empty/corrupted complaint records ── */
     try {
+        /* Count records that need rebuilding: NULL, empty, OR missing the 'ref' key */
         $nullCount = (int) $pdo->query(
-            "SELECT COUNT(*) FROM fmc_complaints WHERE raw_data IS NULL OR raw_data = ''"
+            "SELECT COUNT(*) FROM fmc_complaints
+             WHERE raw_data IS NULL
+                OR raw_data = ''
+                OR JSON_UNQUOTE(JSON_EXTRACT(raw_data, '$.ref')) IS NULL"
         )->fetchColumn();
 
         if ($nullCount > 0) {
             $rows = $pdo->query(
                 "SELECT id, reference, full_name, email, phone, company_name, description,
                         amount_lost, currency_lost, status, created_at
-                 FROM fmc_complaints WHERE raw_data IS NULL OR raw_data = ''"
+                 FROM fmc_complaints
+                 WHERE raw_data IS NULL
+                    OR raw_data = ''
+                    OR JSON_UNQUOTE(JSON_EXTRACT(raw_data, '$.ref')) IS NULL"
             )->fetchAll();
 
             $update = $pdo->prepare(
