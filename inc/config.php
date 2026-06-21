@@ -1,6 +1,8 @@
 <?php
 // FMC Site - Database & App Configuration
 // Reads environment variables from Railway
+ini_set('display_errors', 0);
+error_reporting(E_ERROR | E_PARSE);
 
 define('APP_ENV', getenv('RAILWAY_ENVIRONMENT_NAME') ?: 'production');
 define('APP_URL', getenv('SITE_URL') ?: 'https://fmc-gov.com');
