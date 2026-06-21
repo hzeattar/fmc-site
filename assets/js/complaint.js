@@ -15,29 +15,45 @@
   function $(s, c) { return (c || document).querySelector(s); }
   function $all(s, c) { return Array.prototype.slice.call((c || document).querySelectorAll(s)); }
 
-  // ---------- Populate firm dropdown from the register ----------
+  // ---------- Populate firm dropdown from DB API (fallback to window.FMC_COMPANIES) ----------
   function populateFirms() {
     var sel = $("#firmName");
-    if (!sel || !window.FMC_COMPANIES) return;
-    window.FMC_COMPANIES.forEach(function (c) {
-      var o = document.createElement("option");
-      o.value = c.name;
-      o.textContent = c.name + "  (" + c.id + ")";
-      sel.appendChild(o);
-    });
-    var other = document.createElement("option");
-    other.value = "__other__";
-    other.textContent = T("cf.f.firm.other");
-    otherOption = other;
-    sel.appendChild(other);
+    if (!sel) return;
 
-    // pre-select firm from query string (?firm=...)
-    var params = new URLSearchParams(location.search);
-    var firm = params.get("firm");
-    if (firm) {
-      var match = window.FMC_COMPANIES.filter(function (c) { return c.name === firm; })[0];
-      if (match) sel.value = match.name; else { sel.value = "__other__"; toggleOther(); $("#firmOther").value = firm; }
+    function fillSel(companies) {
+      // Clear all existing options
+      while (sel.options.length > 0) sel.remove(0);
+      companies.forEach(function (c) {
+        var o = document.createElement("option");
+        o.value = c.name;
+        o.textContent = c.name + "  (" + c.id + ")";
+        sel.appendChild(o);
+      });
+      var other = document.createElement("option");
+      other.value = "__other__";
+      other.textContent = T("cf.f.firm.other");
+      otherOption = other;
+      sel.appendChild(other);
+
+      // pre-select firm from query string (?firm=...)
+      var params = new URLSearchParams(location.search);
+      var firm = params.get("firm");
+      if (firm) {
+        var match = companies.filter(function (c) { return c.name === firm; })[0];
+        if (match) sel.value = match.name;
+        else { sel.value = "__other__"; toggleOther(); var fo = $("#firmOther"); if (fo) fo.value = firm; }
+      }
     }
+
+    // Try DB API first, fallback to static window.FMC_COMPANIES
+    fetch("/api/companies.php")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        fillSel((data.ok && data.companies && data.companies.length) ? data.companies : (window.FMC_COMPANIES || []));
+      })
+      .catch(function () {
+        fillSel(window.FMC_COMPANIES || []);
+      });
   }
   function toggleOther() {
     var sel = $("#firmName");

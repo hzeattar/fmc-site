@@ -8,22 +8,28 @@ if ($secret !== (getenv('DB_INIT_SECRET') ?: 'fmc-init-2026')) {
 }
 
 try {
-    $pdo = DB::pdo();
+    $pdo  = DB::pdo();
     $done = [];
 
-    // Add raw_data column for storing the full JS record
+    /* ── 1. raw_data column ── */
     try {
         $pdo->exec("ALTER TABLE fmc_complaints ADD COLUMN raw_data MEDIUMTEXT DEFAULT NULL");
         $done[] = 'Added raw_data column';
     } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'Duplicate column') !== false || $e->getCode() === '42S21') {
-            $done[] = 'raw_data column already exists';
-        } else {
-            throw $e;
-        }
+        $done[] = 'raw_data column already exists';
     }
 
-    // Ensure admin user exists with hashed password
+    /* ── 2. MySQL-backed sessions table ── */
+    $pdo->exec("CREATE TABLE IF NOT EXISTS fmc_sessions (
+        id      VARCHAR(128) NOT NULL PRIMARY KEY,
+        data    MEDIUMTEXT   NOT NULL,
+        expires DATETIME     NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_expires (expires)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $done[] = 'fmc_sessions table ensured';
+
+    /* ── 3. Ensure admin account ── */
     $pass = getenv('ADMIN_PASSWORD') ?: 'FmcAdmin2026!';
     $hash = password_hash($pass, PASSWORD_DEFAULT);
     $pdo->prepare(
@@ -32,6 +38,10 @@ try {
          ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash), status='active'"
     )->execute([$hash]);
     $done[] = 'Admin account ensured';
+
+    /* ── 4. Clean expired sessions ── */
+    $deleted = $pdo->exec("DELETE FROM fmc_sessions WHERE expires < NOW()");
+    if ($deleted > 0) $done[] = "Cleared {$deleted} expired session(s)";
 
     jsonOut(['ok' => true, 'applied' => $done]);
 } catch (Exception $e) {

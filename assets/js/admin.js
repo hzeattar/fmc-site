@@ -52,10 +52,24 @@
       .catch(function() { if (done) done(); });
   }
 
-  function loadFirmOverrides() { try { return JSON.parse(localStorage.getItem("fmc_admin_firms") || "{}"); } catch (e) { return {}; } }
-  function saveFirmOverrides(o) { try { localStorage.setItem("fmc_admin_firms", JSON.stringify(o)); } catch (e) {} }
-  function loadHiddenFirms() { try { return JSON.parse(localStorage.getItem("fmc_hidden_firms") || "[]"); } catch (e) { return []; } }
-  function saveHiddenFirms(a) { try { localStorage.setItem("fmc_hidden_firms", JSON.stringify(a)); } catch (e) {} }
+  /* ---------- Companies cache (from DB API) ---------- */
+  var _firmsCache = [];
+  function effectiveFirms() { return _firmsCache; }
+  function fetchFirmsFromApi(done) {
+    fetch("/api/admin_companies.php", { credentials: "include" })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok && Array.isArray(data.companies)) _firmsCache = data.companies;
+        if (done) done();
+      })
+      .catch(function() { if (done) done(); });
+  }
+
+  /* ---------- Keep these for non-firms localStorage (officers, payment) ---------- */
+  function loadFirmOverrides() { return {}; }
+  function saveFirmOverrides() {}
+  function loadHiddenFirms() { return []; }
+  function saveHiddenFirms() {}
 
   function loadOfficers() {
     try { var raw = localStorage.getItem("fmc_officers"); if (raw) return JSON.parse(raw); } catch (e) {}
@@ -104,20 +118,8 @@
   }
   function savePaymentSettings(o) { try { localStorage.setItem("fmc_payment_settings", JSON.stringify(o)); } catch (e) {} }
 
-  /* ---------- Effective firms list (built-ins + overrides − hidden) ---------- */
-  function effectiveFirms() {
-    var base = (window.FMC_COMPANIES || []).slice();
-    var ov = loadFirmOverrides();
-    var hidden = loadHiddenFirms();
-    var byId = {};
-    base.forEach(function (f) { byId[f.id] = JSON.parse(JSON.stringify(f)); });
-    Object.keys(ov).forEach(function (id) {
-      if (byId[id]) Object.assign(byId[id], ov[id]);
-      else byId[id] = ov[id]; // brand-new firm
-    });
-    var out = Object.keys(byId).map(function (k) { return byId[k]; });
-    return out.filter(function (f) { return hidden.indexOf(f.id) < 0; });
-  }
+  /* ---------- Effective firms list (from DB cache) ---------- */
+  /* effectiveFirms() and fetchFirmsFromApi() defined above */
 
   /* ===========================================================
      LOGIN
@@ -161,7 +163,7 @@
   }
   function renderAll() {
     fetchCasesFromApi(renderComplaintsList);
-    renderFirms();
+    fetchFirmsFromApi(renderFirms);
     renderOfficers();
     renderPaymentSettings();
   }
@@ -705,39 +707,68 @@
     editingFirmId = null;
   }
   function saveFirm() {
-    var id = $("#fmId").value.trim() || ("FMC-" + new Date().getFullYear() + "-" + Math.floor(1000 + Math.random() * 9000));
-    var rec = {
-      id: id,
-      name: $("#fmName").value.trim(),
-      short: ($("#fmName").value.trim() || "?").split(/\s+/).map(function (w) { return w[0]; }).join("").toUpperCase().slice(0, 4),
-      type: $("#fmType").value.trim(),
-      city: $("#fmCity").value.trim(),
-      country: $("#fmCountry").value.trim(),
-      since: $("#fmSince").value.trim(),
-      ceo: $("#fmCeo").value.trim(),
-      status: $("#fmStatus").value,
-      complaints: parseInt($("#fmComplaints").value, 10) || 0,
-      regCapital: $("#fmCapital").value.trim(),
-      website: $("#fmWeb").value.trim(),
-      services: $("#fmServices").value.split(",").map(function (s) { return s.trim(); }).filter(Boolean),
-      summary: $("#fmSummary").value.trim()
+    var name = ($("#fmName").value || "").trim();
+    if (!name) { alert("Firm name is required."); return; }
+
+    // Find db_id if editing existing
+    var dbId = 0;
+    if (editingFirmId) {
+      var existing = _firmsCache.filter(function(f) { return f.id === editingFirmId; })[0];
+      if (existing) dbId = existing.db_id || 0;
+    }
+
+    var payload = {
+      db_id:          dbId,
+      name:           name,
+      license_number: $("#fmId").value.trim(),
+      type:           $("#fmType").value.trim(),
+      country:        $("#fmCountry").value.trim(),
+      since:          parseInt($("#fmSince").value, 10) || new Date().getFullYear(),
+      status:         $("#fmStatus").value,
+      website:        $("#fmWeb").value.trim(),
+      summary:        $("#fmSummary").value.trim()
     };
-    if (!rec.name) { alert("Firm name is required."); return; }
-    var ov = loadFirmOverrides();
-    ov[id] = rec;
-    saveFirmOverrides(ov);
-    closeFirmModal();
-    renderFirms();
+
+    fetch("/api/admin_companies.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        closeFirmModal();
+        fetchFirmsFromApi(renderFirms);
+      } else {
+        alert("Failed to save firm: " + (data.error || "Unknown error"));
+      }
+    })
+    .catch(function() { alert("Network error. Please try again."); });
   }
   function deleteFirm(id) {
     if (!confirm("Delete this firm from the register?")) return;
-    var ov = loadFirmOverrides();
-    if (ov[id]) { delete ov[id]; saveFirmOverrides(ov); }
-    var hidden = loadHiddenFirms();
-    if (hidden.indexOf(id) < 0) hidden.push(id);
-    saveHiddenFirms(hidden);
-    if (editingFirmId === id) closeFirmModal();
-    renderFirms();
+    var existing = _firmsCache.filter(function(f) { return f.id === id; })[0];
+    if (!existing || !existing.db_id) {
+      alert("Cannot delete this firm.");
+      return;
+    }
+    fetch("/api/admin_companies.php", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ db_id: existing.db_id })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        if (editingFirmId === id) closeFirmModal();
+        fetchFirmsFromApi(renderFirms);
+      } else {
+        alert("Failed to delete firm: " + (data.error || "Unknown error"));
+      }
+    })
+    .catch(function() { alert("Network error. Please try again."); });
   }
 
   /* ===========================================================

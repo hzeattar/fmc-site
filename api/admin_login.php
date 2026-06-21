@@ -1,11 +1,7 @@
 <?php
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', 1);
-ini_set('session.cookie_samesite', 'Strict');
-ini_set('session.save_path', sys_get_temp_dir());
-session_start();
-
 require_once __DIR__ . '/../inc/db.php';
+require_once __DIR__ . '/../inc/session_db.php';
+startAdminSession();
 
 requireMethod('POST');
 $data = getJsonBody();
@@ -20,7 +16,6 @@ if (!$username || !$password) {
 try {
     $pdo = DB::pdo();
 
-    // Check DB admin first
     $stmt = $pdo->prepare("SELECT * FROM fmc_admins WHERE username = ? AND status = 'active' LIMIT 1");
     $stmt->execute([$username]);
     $admin = $stmt->fetch();
@@ -51,12 +46,12 @@ try {
     $_SESSION['admin_role'] = $admin['role'];
 
     jsonOut([
-        'ok'      => true,
-        'admin_id'=> (int)$admin['id'],
-        'name'    => $admin['name'],
-        'role'    => $admin['role'],
+        'ok'       => true,
+        'admin_id' => (int)$admin['id'],
+        'name'     => $admin['name'],
+        'role'     => $admin['role'],
     ]);
 } catch (PDOException $e) {
-    error_log("LOGIN ERROR: " . $e->getMessage());
+    error_log('LOGIN ERROR: ' . $e->getMessage());
     jsonOut(['ok' => false, 'error' => 'Server error'], 500);
 }

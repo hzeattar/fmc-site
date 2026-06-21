@@ -1,12 +1,8 @@
 <?php
-ini_set('session.cookie_httponly', 1);
-ini_set('session.cookie_secure', 1);
-ini_set('session.cookie_samesite', 'Strict');
-ini_set('session.save_path', sys_get_temp_dir());
-session_start();
-
 require_once __DIR__ . '/../inc/db.php';
 require_once __DIR__ . '/../inc/mailer.php';
+require_once __DIR__ . '/../inc/session_db.php';
+startAdminSession();
 
 requireMethod('POST');
 
