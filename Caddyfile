@@ -5,13 +5,16 @@
 }
 
 :{$PORT:8080} {
-	# Route PHP files directly
+	# Route PHP files through FrankenPHP
 	@php {
 		path *.php
 	}
 
-	php_fastcgi @php {
-		root /app
+	# Use FrankenPHP's built-in PHP handler
+	route @php {
+		php {
+			root /app
+		}
 	}
 
 	# Serve static files
