@@ -51,14 +51,16 @@ try {
         $name = trim($d['name'] ?? '');
         if (!$name) jsonOut(['ok' => false, 'error' => 'Name is required'], 422);
 
-        $license  = sanitizeString($d['license_number'] ?? $d['id'] ?? '', 100);
+        /* Use plain trim (no htmlspecialchars) — fields are displayed raw via JS esc() */
+        $clean = function($v, $max) { $v = trim((string)$v); return $max > 0 && mb_strlen($v) > $max ? mb_substr($v, 0, $max) : $v; };
+        $license  = $clean($d['license_number'] ?? $d['id'] ?? '', 100);
         $status   = in_array($d['status'] ?? 'active', ['active', 'frozen', 'suspended', 'pending'])
                     ? ($d['status'] ?? 'active') : 'active';
-        $type     = sanitizeString($d['type'] ?? '', 100);
-        $country  = sanitizeString($d['country'] ?? '', 100);
+        $type     = $clean($d['type']    ?? '', 100);
+        $country  = $clean($d['country'] ?? '', 100);
         $since    = (int) ($d['since'] ?? date('Y'));
-        $website  = sanitizeString($d['website'] ?? '', 500);
-        $summary  = sanitizeString($d['summary'] ?? '', 1000);
+        $website  = $clean($d['website'] ?? '', 500);
+        $summary  = $clean($d['summary'] ?? '', 1000);
         $dbId     = (int) ($d['db_id'] ?? 0);
 
         if ($dbId) {

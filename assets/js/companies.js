@@ -224,6 +224,7 @@
   var lastList = COMPANIES;
 
   function T(k) { return (window.FMC_I18N && window.FMC_I18N.t) ? window.FMC_I18N.t(k) : k; }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]; }); }
   function typeLabel(type) { return T("ctype." + type); }
 
   function badge(status) {
@@ -338,7 +339,7 @@
           '<div class="lic-no">' + c.id + '</div></div>' +
           '<div>' + badge(c.status) + '</div>' +
         '</div>' +
-        '<p style="margin-top:16px">' + (c.summary || '') + '</p>' +
+        '<p style="margin-top:16px">' + esc(c.summary || '') + '</p>' +
         '<h4>' + T("comp.modal.firmDetails") + '</h4>' +
         '<div class="detail-grid">' +
           detail(T("comp.d.type"), typeLabel(c.type)) +
@@ -368,7 +369,7 @@
     overlay.querySelector(".modal-close").addEventListener("click", closeModal);
   }
   function detail(k, v) {
-    return '<div class="detail"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>';
+    return '<div class="detail"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + '</div></div>';
   }
   function closeModal() {
     var overlay = document.getElementById("companyModal");
