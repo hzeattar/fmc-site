@@ -421,7 +421,10 @@
       lastList = COMPANIES;
       render(COMPANIES);
       var cnt = document.getElementById("compCount");
-      if (cnt) cnt.textContent = countText(COMPANIES.length);
+      if (cnt) {
+        cnt.textContent = countText(COMPANIES.length);
+        cnt.style.display = "";
+      }
     });
   });
 })();
