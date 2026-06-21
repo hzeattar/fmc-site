@@ -21,9 +21,8 @@ COPY . /app/
 # Set working directory
 WORKDIR /app
 
-# Configure FrankenPHP to listen on the Railway PORT (non-worker mode)
-ENV SERVER_NAME=":${PORT:-8080}"
-ENV FRANKENPHP_CONFIG=""
+# Use custom Caddyfile
+COPY Caddyfile /etc/frankenphp/Caddyfile
 
-# Start FrankenPHP in standard mode (not worker mode)
+# Start FrankenPHP with custom config
 CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]

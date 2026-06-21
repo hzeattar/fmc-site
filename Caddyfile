@@ -1,0 +1,28 @@
+{
+	# FrankenPHP configuration for FMC site
+	# This serves PHP files directly and static files as-is
+}
+
+:{$PORT:8080} {
+	# Enable FrankenPHP
+	frankenphp {
+		# worker /app/index.php  # Don't use worker mode for traditional PHP
+	}
+
+	# Route PHP files directly
+	@php {
+		path *.php
+	}
+
+	php_fastcgi @php {
+		root /app
+	}
+
+	# Serve static files
+	file_server {
+		root /app
+	}
+
+	# Try files pattern
+	try_files {path} {path}/ /index.php
+}
