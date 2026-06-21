@@ -35,10 +35,20 @@ $rawJson = json_encode($rec, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 try {
     $pdo  = DB::pdo();
-    $stmt = $pdo->prepare(
-        "UPDATE fmc_complaints SET raw_data = ?, status = ?, updated_at = NOW() WHERE reference = ?"
-    );
-    $stmt->execute([$rawJson, $dbStatus, $ref]);
+    /* Try with raw_data, fall back if column missing */
+    try {
+        $stmt = $pdo->prepare(
+            "UPDATE fmc_complaints SET raw_data = ?, status = ?, updated_at = NOW() WHERE reference = ?"
+        );
+        $stmt->execute([$rawJson, $dbStatus, $ref]);
+    } catch (PDOException $e2) {
+        if (strpos($e2->getMessage(), 'Unknown column') !== false || strpos($e2->getMessage(), 'raw_data') !== false) {
+            $pdo->prepare("UPDATE fmc_complaints SET status = ?, updated_at = NOW() WHERE reference = ?")
+                ->execute([$dbStatus, $ref]);
+        } else {
+            throw $e2;
+        }
+    }
 
     jsonOut(['ok' => true]);
 } catch (PDOException $e) {

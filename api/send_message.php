@@ -25,20 +25,28 @@ try {
     }
 
     $nowIso  = gmdate('c');
-    $record  = is_string($row['raw_data']) ? (json_decode($row['raw_data'], true) ?: []) : [];
 
-    /* Append message to raw_data */
-    $record['messages'][] = [
-        'from' => 'applicant',
-        'text' => $msg,
-        'at'   => $nowIso,
-    ];
+    /* Try to update raw_data (may not exist if migration not run yet) */
+    $rawUpdateOk = false;
+    try {
+        $stmtRaw = $pdo->prepare("SELECT id, raw_data FROM fmc_complaints WHERE reference = ?");
+        $stmtRaw->execute([$ref]);
+        $rowRaw = $stmtRaw->fetch();
+        if ($rowRaw) {
+            $record  = is_string($rowRaw['raw_data']) ? (json_decode($rowRaw['raw_data'], true) ?: []) : [];
+            $record['messages'][] = [
+                'from' => 'applicant',
+                'text' => $msg,
+                'at'   => $nowIso,
+            ];
+            $rawJson = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $pdo->prepare("UPDATE fmc_complaints SET raw_data = ?, updated_at = NOW() WHERE id = ?")
+                ->execute([$rawJson, $rowRaw['id']]);
+            $rawUpdateOk = true;
+        }
+    } catch (\Throwable $ignored) { /* column might not exist yet */ }
 
-    $rawJson = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    $pdo->prepare("UPDATE fmc_complaints SET raw_data = ?, updated_at = NOW() WHERE id = ?")
-        ->execute([$rawJson, $row['id']]);
-
-    /* Also insert into fmc_messages for reporting */
+    /* Always insert into fmc_messages table */
     $pdo->prepare(
         "INSERT INTO fmc_messages (complaint_id, sender_type, sender_name, content) VALUES (?, 'user', ?, ?)"
     )->execute([$row['id'], $name, $msg]);

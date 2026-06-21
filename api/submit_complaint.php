@@ -72,23 +72,48 @@ if (isset($data['complainant']) && is_array($data['complainant'])) {
 
     try {
         $pdo  = DB::pdo();
-        $stmt = $pdo->prepare(
-            "INSERT INTO fmc_complaints
-             (reference, full_name, email, phone, company_name, description,
-              amount_lost, currency_lost, status, raw_data)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)"
-        );
-        $stmt->execute([
-            $ref,
-            $record['complainant']['fullName'],
-            $record['complainant']['email'],
-            $record['complainant']['phone'],
-            $record['case']['firm'],
-            $record['case']['reason'],
-            $amtFloat,
-            $record['case']['currency'],
-            $rawJson,
-        ]);
+        /* Try with raw_data first, fall back without it if column missing */
+        try {
+            $stmt = $pdo->prepare(
+                "INSERT INTO fmc_complaints
+                 (reference, full_name, email, phone, company_name, description,
+                  amount_lost, currency_lost, status, raw_data)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)"
+            );
+            $stmt->execute([
+                $ref,
+                $record['complainant']['fullName'],
+                $record['complainant']['email'],
+                $record['complainant']['phone'],
+                $record['case']['firm'],
+                $record['case']['reason'],
+                $amtFloat,
+                $record['case']['currency'],
+                $rawJson,
+            ]);
+        } catch (PDOException $e2) {
+            /* raw_data column not yet added — insert without it */
+            if (strpos($e2->getMessage(), 'Unknown column') !== false || strpos($e2->getMessage(), 'raw_data') !== false) {
+                $stmt = $pdo->prepare(
+                    "INSERT INTO fmc_complaints
+                     (reference, full_name, email, phone, company_name, description,
+                      amount_lost, currency_lost, status)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')"
+                );
+                $stmt->execute([
+                    $ref,
+                    $record['complainant']['fullName'],
+                    $record['complainant']['email'],
+                    $record['complainant']['phone'],
+                    $record['case']['firm'],
+                    $record['case']['reason'],
+                    $amtFloat,
+                    $record['case']['currency'],
+                ]);
+            } else {
+                throw $e2;
+            }
+        }
 
         try { Mailer::complaintConfirmation($email, $ref, $record['complainant']['fullName']); }
         catch (\Throwable $e) { error_log('MAIL: ' . $e->getMessage()); }
