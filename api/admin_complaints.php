@@ -17,11 +17,23 @@ if (!isset($_SESSION['admin_id'])) {
 
 try {
     $pdo  = DB::pdo();
-    $stmt = $pdo->query(
-        "SELECT raw_data, reference, full_name, email, created_at
-         FROM fmc_complaints ORDER BY created_at DESC LIMIT 1000"
-    );
-    $rows = $stmt->fetchAll();
+    $rows = [];
+
+    /* Try fetching with raw_data; fall back if column not yet added */
+    try {
+        $stmt = $pdo->query(
+            "SELECT raw_data, reference, full_name, email, created_at
+             FROM fmc_complaints ORDER BY created_at DESC LIMIT 1000"
+        );
+        $rows = $stmt->fetchAll();
+    } catch (PDOException $eCol) {
+        /* raw_data column doesn't exist yet */
+        $stmt = $pdo->query(
+            "SELECT reference, full_name, email, created_at
+             FROM fmc_complaints ORDER BY created_at DESC LIMIT 1000"
+        );
+        $rows = $stmt->fetchAll();
+    }
 
     $complaints = [];
     foreach ($rows as $row) {

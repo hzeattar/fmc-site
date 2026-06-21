@@ -13,9 +13,19 @@ if (!$ref) {
 
 try {
     $pdo  = DB::pdo();
-    $stmt = $pdo->prepare("SELECT * FROM fmc_complaints WHERE reference = ? LIMIT 1");
-    $stmt->execute([$ref]);
-    $row  = $stmt->fetch();
+    $row  = null;
+
+    /* Try fetching with raw_data; fall back to basic columns if column not yet added */
+    try {
+        $stmt = $pdo->prepare("SELECT id, reference, full_name, email, phone, company_name, description, status, amount_lost, currency_lost, created_at, raw_data FROM fmc_complaints WHERE reference = ? LIMIT 1");
+        $stmt->execute([$ref]);
+        $row  = $stmt->fetch();
+    } catch (PDOException $eCol) {
+        /* raw_data column doesn't exist yet */
+        $stmt = $pdo->prepare("SELECT id, reference, full_name, email, phone, company_name, description, status, amount_lost, currency_lost, created_at FROM fmc_complaints WHERE reference = ? LIMIT 1");
+        $stmt->execute([$ref]);
+        $row  = $stmt->fetch();
+    }
 
     if (!$row) {
         jsonOut(['ok' => false, 'error' => 'Complaint not found'], 404);

@@ -17,7 +17,7 @@ if (mb_strlen($msg, 'UTF-8') > 2000) {
 
 try {
     $pdo  = DB::pdo();
-    $stmt = $pdo->prepare("SELECT id, raw_data FROM fmc_complaints WHERE reference = ?");
+    $stmt = $pdo->prepare("SELECT id FROM fmc_complaints WHERE reference = ?");
     $stmt->execute([$ref]);
     $row  = $stmt->fetch();
     if (!$row) {
@@ -27,10 +27,9 @@ try {
     $nowIso  = gmdate('c');
 
     /* Try to update raw_data (may not exist if migration not run yet) */
-    $rawUpdateOk = false;
     try {
-        $stmtRaw = $pdo->prepare("SELECT id, raw_data FROM fmc_complaints WHERE reference = ?");
-        $stmtRaw->execute([$ref]);
+        $stmtRaw = $pdo->prepare("SELECT id, raw_data FROM fmc_complaints WHERE id = ?");
+        $stmtRaw->execute([$row['id']]);
         $rowRaw = $stmtRaw->fetch();
         if ($rowRaw) {
             $record  = is_string($rowRaw['raw_data']) ? (json_decode($rowRaw['raw_data'], true) ?: []) : [];
@@ -42,9 +41,8 @@ try {
             $rawJson = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $pdo->prepare("UPDATE fmc_complaints SET raw_data = ?, updated_at = NOW() WHERE id = ?")
                 ->execute([$rawJson, $rowRaw['id']]);
-            $rawUpdateOk = true;
         }
-    } catch (\Throwable $ignored) { /* column might not exist yet */ }
+    } catch (\Throwable $ignored) { /* column might not exist yet — that's ok */ }
 
     /* Always insert into fmc_messages table */
     $pdo->prepare(
