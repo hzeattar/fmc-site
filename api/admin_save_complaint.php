@@ -39,14 +39,24 @@ try {
     $complainantName  = '';
 
     try {
-        $stmtOld = $pdo->prepare("SELECT raw_data FROM fmc_complaints WHERE reference = ? LIMIT 1");
+        $stmtOld = $pdo->prepare(
+            "SELECT raw_data, email, full_name, status FROM fmc_complaints WHERE reference = ? LIMIT 1"
+        );
         $stmtOld->execute([$ref]);
         $oldRow = $stmtOld->fetch();
-        if ($oldRow && !empty($oldRow['raw_data'])) {
-            $oldRec = json_decode($oldRow['raw_data'], true) ?: [];
-            $oldState         = $oldRec['state']                   ?? 'received';
-            $complainantEmail = $oldRec['complainant']['email']    ?? '';
-            $complainantName  = $oldRec['complainant']['fullName'] ?? '';
+        if ($oldRow) {
+            if (!empty($oldRow['raw_data'])) {
+                $oldRec           = json_decode($oldRow['raw_data'], true) ?: [];
+                $oldState         = $oldRec['state']                   ?? 'received';
+                $complainantEmail = $oldRec['complainant']['email']    ?? ($oldRow['email']     ?? '');
+                $complainantName  = $oldRec['complainant']['fullName'] ?? ($oldRow['full_name'] ?? '');
+            } else {
+                /* Flat-column fallback for pre-migration records */
+                $stMap            = ['pending' => 'received', 'under_review' => 'review', 'closed' => 'closed'];
+                $oldState         = $stMap[$oldRow['status'] ?? 'pending'] ?? 'received';
+                $complainantEmail = $oldRow['email']     ?? '';
+                $complainantName  = $oldRow['full_name'] ?? '';
+            }
         }
     } catch (\Throwable $ignored) {}
 

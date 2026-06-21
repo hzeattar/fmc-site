@@ -28,16 +28,42 @@ try {
 
     /* Try to update raw_data (may not exist if migration not run yet) */
     try {
-        $stmtRaw = $pdo->prepare("SELECT id, raw_data FROM fmc_complaints WHERE id = ?");
+        $stmtRaw = $pdo->prepare(
+            "SELECT id, raw_data, reference, full_name, email, phone, company_name, description,
+                    amount_lost, currency_lost, status, created_at
+             FROM fmc_complaints WHERE id = ?"
+        );
         $stmtRaw->execute([$row['id']]);
         $rowRaw = $stmtRaw->fetch();
         if ($rowRaw) {
-            $record  = is_string($rowRaw['raw_data']) ? (json_decode($rowRaw['raw_data'], true) ?: []) : [];
-            $record['messages'][] = [
-                'from' => 'applicant',
-                'text' => $msg,
-                'at'   => $nowIso,
-            ];
+            if (!empty($rowRaw['raw_data'])) {
+                $record = json_decode($rowRaw['raw_data'], true) ?: [];
+            } else {
+                /* Build complete record from flat columns to avoid partial raw_data corruption */
+                $stMap  = ['pending' => 'received', 'under_review' => 'review', 'closed' => 'closed'];
+                $st     = $stMap[$rowRaw['status'] ?? 'pending'] ?? 'received';
+                $record = [
+                    'ref'          => $rowRaw['reference'],
+                    'createdAt'    => $rowRaw['created_at'],
+                    'status'       => $st, 'state' => $st,
+                    'stateHistory' => [['state' => $st, 'at' => $rowRaw['created_at'], 'by' => 'system']],
+                    'officer'      => null, 'appointment' => null, 'infoRequest' => null, 'decision' => null,
+                    'messages'     => [], 'extraFiles' => [], 'applicantUnread' => 0,
+                    'complainant'  => [
+                        'fullName' => $rowRaw['full_name'] ?? '',
+                        'email'    => $rowRaw['email']     ?? '',
+                        'phone'    => $rowRaw['phone']     ?? '',
+                    ],
+                    'case'         => [
+                        'firm'            => $rowRaw['company_name']  ?? '',
+                        'currency'        => $rowRaw['currency_lost'] ?? 'USD',
+                        'amountDeposited' => (string)($rowRaw['amount_lost'] ?? ''),
+                        'reason'          => $rowRaw['description']   ?? '',
+                    ],
+                    'evidence' => [],
+                ];
+            }
+            $record['messages'][] = ['from' => 'applicant', 'text' => $msg, 'at' => $nowIso];
             $rawJson = json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $pdo->prepare("UPDATE fmc_complaints SET raw_data = ?, updated_at = NOW() WHERE id = ?")
                 ->execute([$rawJson, $rowRaw['id']]);

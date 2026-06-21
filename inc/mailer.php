@@ -83,7 +83,7 @@ class Mailer {
 
     public static function send(string $to, string $subject, string $html, string $text = ''): bool {
         return self::sendRequest([
-            'from'    => FROM_EMAIL,
+            'from'    => str_contains(FROM_EMAIL, '<') ? FROM_EMAIL : 'FMC <' . FROM_EMAIL . '>',
             'to'      => [$to],
             'subject' => $subject,
             'html'    => $html,

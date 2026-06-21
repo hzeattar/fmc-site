@@ -19,7 +19,15 @@ try {
         $done[] = 'raw_data column already exists';
     }
 
-    /* ── 2. MySQL-backed sessions table ── */
+    /* ── 2. updated_at column ── */
+    try {
+        $pdo->exec("ALTER TABLE fmc_complaints ADD COLUMN updated_at DATETIME DEFAULT NULL");
+        $done[] = 'Added updated_at column';
+    } catch (PDOException $e) {
+        $done[] = 'updated_at column already exists';
+    }
+
+    /* ── 3. MySQL-backed sessions table ── */
     $pdo->exec("CREATE TABLE IF NOT EXISTS fmc_sessions (
         id      VARCHAR(128) NOT NULL PRIMARY KEY,
         data    MEDIUMTEXT   NOT NULL,
@@ -29,7 +37,7 @@ try {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $done[] = 'fmc_sessions table ensured';
 
-    /* ── 3. Ensure admin account ── */
+    /* ── 4. Ensure admin account ── */
     $pass = getenv('ADMIN_PASSWORD') ?: 'FmcAdmin2026!';
     $hash = password_hash($pass, PASSWORD_DEFAULT);
     $pdo->prepare(
@@ -39,9 +47,69 @@ try {
     )->execute([$hash]);
     $done[] = 'Admin account ensured';
 
-    /* ── 4. Clean expired sessions ── */
+    /* ── 5. Clean expired sessions ── */
     $deleted = $pdo->exec("DELETE FROM fmc_sessions WHERE expires < NOW()");
     if ($deleted > 0) $done[] = "Cleared {$deleted} expired session(s)";
+
+    /* ── 6. Backfill raw_data for pre-migration complaints ── */
+    try {
+        $nullCount = (int) $pdo->query(
+            "SELECT COUNT(*) FROM fmc_complaints WHERE raw_data IS NULL OR raw_data = ''"
+        )->fetchColumn();
+
+        if ($nullCount > 0) {
+            $rows = $pdo->query(
+                "SELECT id, reference, full_name, email, phone, company_name, description,
+                        amount_lost, currency_lost, status, created_at
+                 FROM fmc_complaints WHERE raw_data IS NULL OR raw_data = ''"
+            )->fetchAll();
+
+            $update = $pdo->prepare(
+                "UPDATE fmc_complaints SET raw_data = ? WHERE id = ?"
+            );
+            $filled = 0;
+            foreach ($rows as $r) {
+                $stMap  = ['pending' => 'received', 'under_review' => 'review', 'closed' => 'closed'];
+                $st     = $stMap[$r['status'] ?? 'pending'] ?? 'received';
+                $record = [
+                    'ref'          => $r['reference'],
+                    'createdAt'    => $r['created_at'],
+                    'status'       => $st,
+                    'state'        => $st,
+                    'stateHistory' => [['state' => $st, 'at' => $r['created_at'], 'by' => 'system']],
+                    'officer'      => null,
+                    'appointment'  => null,
+                    'infoRequest'  => null,
+                    'decision'     => null,
+                    'messages'     => [],
+                    'extraFiles'   => [],
+                    'applicantUnread' => 0,
+                    'complainant'  => [
+                        'fullName' => $r['full_name']  ?? '',
+                        'email'    => $r['email']      ?? '',
+                        'phone'    => $r['phone']      ?? '',
+                    ],
+                    'case'         => [
+                        'firm'            => $r['company_name']  ?? '',
+                        'currency'        => $r['currency_lost'] ?? 'USD',
+                        'amountDeposited' => (string)($r['amount_lost'] ?? ''),
+                        'reason'          => $r['description']   ?? '',
+                    ],
+                    'evidence' => [],
+                ];
+                $update->execute([
+                    json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    $r['id'],
+                ]);
+                $filled++;
+            }
+            $done[] = "Backfilled raw_data for {$filled} complaint(s)";
+        } else {
+            $done[] = 'No raw_data backfill needed';
+        }
+    } catch (\Throwable $bfErr) {
+        $done[] = 'Backfill skipped: ' . $bfErr->getMessage();
+    }
 
     jsonOut(['ok' => true, 'applied' => $done]);
 } catch (Exception $e) {
