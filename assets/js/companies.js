@@ -153,8 +153,71 @@
     return list;
   }
 
-  var COMPANIES = buildCompanies();
+  var DEMO_COMPANIES = buildCompanies();
+  var COMPANIES = DEMO_COMPANIES.slice(); /* will be replaced/prepended with DB companies */
   window.FMC_COMPANIES = COMPANIES;
+
+  /* Map DB type string to internal category key */
+  function typeToCategory(type) {
+    type = (type || "").toLowerCase();
+    if (type.indexOf("asset") !== -1 || type.indexOf("pension") !== -1) return "asset";
+    if (type.indexOf("adviser") !== -1 || type.indexOf("advisor") !== -1) return "adviser";
+    if (type.indexOf("venue") !== -1 || type.indexOf("derivatives") !== -1) return "venue";
+    if (type.indexOf("clearing") !== -1) return "clearing";
+    if (type.indexOf("bank") !== -1) return "bank";
+    return "broker";
+  }
+
+  /* Build a full company object from a DB record */
+  function dbToCompany(c) {
+    var yr = c.since || String(new Date().getFullYear());
+    var category = typeToCategory(c.type);
+    var id = c.id || ("FMC-" + yr + "-" + String(c.db_id || 0).padStart(4, "0"));
+    var pool = SERVICE_POOL[category] || SERVICE_POOL.broker;
+    var i = c.db_id || 0;
+    var services = [pool[i % pool.length], pool[(i + 3) % pool.length]].filter(function (v, ix, a) { return a.indexOf(v) === ix; });
+    return {
+      id: id,
+      db_id: c.db_id,
+      name: c.name,
+      short: c.short || c.name.split(" ").map(function (w) { return w[0] || ""; }).join("").toUpperCase().slice(0, 4),
+      type: c.type || "Brokerage",
+      category: category,
+      status: c.status || "active",
+      complaints: 0,
+      country: c.country || "United Kingdom",
+      city: "",
+      since: yr,
+      services: services,
+      ceo: "",
+      website: c.website || "",
+      regCapital: "",
+      clientFunds: "",
+      lastAudit: "",
+      summary: c.summary || ("A " + (c.type || "firm").toLowerCase() + " licensed and regulated by the FMC."),
+      _fromDB: true
+    };
+  }
+
+  /* Fetch DB companies and prepend to COMPANIES, then re-render */
+  function loadDbCompanies(cb) {
+    fetch("/api/companies.php")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok && Array.isArray(data.companies) && data.companies.length) {
+          var dbObjs = data.companies.map(dbToCompany);
+          /* Replace COMPANIES: DB companies first, then demo companies not already in DB */
+          var dbIds = {};
+          dbObjs.forEach(function (c) { dbIds[c.name.toLowerCase()] = true; });
+          var filteredDemo = DEMO_COMPANIES.filter(function (c) { return !dbIds[c.name.toLowerCase()]; });
+          COMPANIES.length = 0;
+          [].push.apply(COMPANIES, dbObjs.concat(filteredDemo));
+          window.FMC_COMPANIES = COMPANIES;
+        }
+        if (cb) cb();
+      })
+      .catch(function () { if (cb) cb(); });
+  }
 
   var openId = null;
   var page = 1;
@@ -275,24 +338,24 @@
           '<div class="lic-no">' + c.id + '</div></div>' +
           '<div>' + badge(c.status) + '</div>' +
         '</div>' +
-        '<p style="margin-top:16px">' + c.summary + '</p>' +
+        '<p style="margin-top:16px">' + (c.summary || '') + '</p>' +
         '<h4>' + T("comp.modal.firmDetails") + '</h4>' +
         '<div class="detail-grid">' +
           detail(T("comp.d.type"), typeLabel(c.type)) +
-          detail(T("comp.d.hq"), c.city + ", " + c.country) +
-          detail(T("comp.d.since"), c.since) +
-          detail(T("comp.d.ceo"), c.ceo) +
-          detail(T("comp.d.capital"), c.regCapital) +
-          detail(T("comp.d.website"), c.website) +
+          detail(T("comp.d.hq"), [c.city, c.country].filter(Boolean).join(", ") || "—") +
+          detail(T("comp.d.since"), c.since || "—") +
+          (c.ceo ? detail(T("comp.d.ceo"), c.ceo) : "") +
+          (c.regCapital ? detail(T("comp.d.capital"), c.regCapital) : "") +
+          (c.website ? detail(T("comp.d.website"), c.website) : "") +
         '</div>' +
-        '<h4>' + T("comp.modal.fundsSup") + '</h4>' +
+        (c.clientFunds || c.lastAudit ? '<h4>' + T("comp.modal.fundsSup") + '</h4>' +
         '<div class="detail-grid">' +
-          detail(T("comp.d.funds"), c.clientFunds) +
-          detail(T("comp.d.exam"), c.lastAudit) +
-        '</div>' +
+          (c.clientFunds ? detail(T("comp.d.funds"), c.clientFunds) : "") +
+          (c.lastAudit ? detail(T("comp.d.exam"), c.lastAudit) : "") +
+        '</div>' : '') +
         complaintsBlock +
-        '<h4>' + T("comp.modal.services") + '</h4>' +
-        '<div class="tag-list">' + c.services.map(function (s) { return '<span>' + s + '</span>'; }).join("") + '</div>' +
+        (c.services && c.services.length ? '<h4>' + T("comp.modal.services") + '</h4>' +
+        '<div class="tag-list">' + c.services.map(function (s) { return '<span>' + s + '</span>'; }).join("") + '</div>' : '') +
         statusNote +
       '</div>' +
       '<div class="modal-foot">' +
@@ -339,10 +402,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     var grid = document.getElementById("companiesGrid");
     if (!grid) return;
-    lastList = COMPANIES;
-    render(COMPANIES);
-    var cnt = document.getElementById("compCount");
-    if (cnt) cnt.textContent = countText(COMPANIES.length);
+
     ["compSearch", "compCategory", "compStatus"].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) el.addEventListener("input", function () { applyFilters(true); });
@@ -354,6 +414,14 @@
     document.addEventListener("fmc:langchange", function () {
       applyFilters(false);
       if (openId) openModal(openId);
+    });
+
+    /* Load DB companies first, then render */
+    loadDbCompanies(function () {
+      lastList = COMPANIES;
+      render(COMPANIES);
+      var cnt = document.getElementById("compCount");
+      if (cnt) cnt.textContent = countText(COMPANIES.length);
     });
   });
 })();
