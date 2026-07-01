@@ -750,6 +750,8 @@
         _caseRec = data.complaint;
         var rec = data.complaint;
         renderHeader(rec);
+        renderApplicant(rec);
+        renderCase(rec);
         renderOfficer(rec);
         renderTimeline(rec);
         renderChatLauncher(rec);
@@ -805,8 +807,8 @@
       if (currentRef) renderAll(currentRef);
     });
 
-    /* Periodic sync — fetch from API every 10s */
-    setInterval(function () { if (currentRef) softReload(); }, 10000);
+    /* Periodic sync — fetch from API every 5s */
+    setInterval(function () { if (currentRef) softReload(); }, 5000);
 
     /* Auto-load from ?ref= or ?id= */
     var params = new URLSearchParams(location.search);

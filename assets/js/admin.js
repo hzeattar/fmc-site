@@ -459,6 +459,13 @@
         var iso = parseDt(dt);
         var rec2 = loadCases()[selectedRef]; if (!rec2) return;
         rec2.appointment = { dateText: dt, at: iso || null, note: note };
+        /* Move case to call stage automatically */
+        if (rec2.state !== "call") {
+          rec2.state = "call";
+          rec2.status = "call";
+          rec2.stateHistory = rec2.stateHistory || [];
+          rec2.stateHistory.push({ state: "call", at: new Date().toISOString(), by: "admin" });
+        }
         saveCase(rec2);
         renderCaseDetail();
         renderComplaintsList();
@@ -490,8 +497,16 @@
         var note = $("#sfInfoNote").value.trim();
         var rec2 = loadCases()[selectedRef]; if (!rec2) return;
         rec2.infoRequest = { items: items, note: note };
+        /* Move case to info stage automatically */
+        if (rec2.state !== "info") {
+          rec2.state = "info";
+          rec2.status = "info";
+          rec2.stateHistory = rec2.stateHistory || [];
+          rec2.stateHistory.push({ state: "info", at: new Date().toISOString(), by: "admin" });
+        }
         saveCase(rec2);
         renderCaseDetail();
+        renderComplaintsList();
       });
     }
     // Decision
@@ -519,8 +534,17 @@
             statusChangedAt: statusChangedAt
           }
         };
+        /* Move case to decision stage automatically (or closed if already closed) */
+        var targetState = rec2.state === "closed" ? "closed" : "decision";
+        if (rec2.state !== targetState) {
+          rec2.state = targetState;
+          rec2.status = targetState;
+          rec2.stateHistory = rec2.stateHistory || [];
+          rec2.stateHistory.push({ state: targetState, at: new Date().toISOString(), by: "admin" });
+        }
         saveCase(rec2);
         renderCaseDetail();
+        renderComplaintsList();
       });
     }
   }
