@@ -18,6 +18,22 @@ if (!$ref) {
 
 $newState = $rec['state'] ?? 'received';
 
+/* Merge incoming rec onto existing raw_data to avoid wiping fields */
+$existingRec = [];
+try {
+    $stmtOld = $pdo->prepare(
+        "SELECT raw_data, email, full_name, status FROM fmc_complaints WHERE reference = ? LIMIT 1"
+    );
+    $stmtOld->execute([$ref]);
+    $oldRow = $stmtOld->fetch();
+    if ($oldRow && !empty($oldRow['raw_data'])) {
+        $existingRec = json_decode($oldRow['raw_data'], true) ?: [];
+    }
+} catch (\Throwable $ignored) {}
+if (is_array($existingRec) && $existingRec) {
+    $rec = array_merge($existingRec, $rec);
+}
+
 /* Map frontend state to DB status column */
 $stateMap = [
     'received' => 'pending',
